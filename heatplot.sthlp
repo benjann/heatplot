@@ -805,7 +805,7 @@
 
 {pmore}
     Jann, B. (2019). heatplot: Stata module to create heat plots and hexagon plots. Available from
-    {browse "http://ideas.repec.org/c/boc/bocode/s?.html"}.
+    {browse "http://ideas.repec.org/c/boc/bocode/s458595.html"}.
 
 
 {title:Also see}
