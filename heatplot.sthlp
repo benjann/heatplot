@@ -1,0 +1,816 @@
+{smcl}
+{* 30jan2019}{...}
+{hi:help heatplot}
+{hline}
+
+{title:Title}
+
+{pstd}{hi:heatplot} {hline 2} Command to create heat plots
+
+
+{title:Syntax}
+
+{pstd}
+    Syntax 1: Heat plot from variables
+
+{p 8 15 2}
+    {cmd:heatplot} [{it:z}] {it:y} {it:x} {ifin} {weight}
+    [{cmd:,}
+    {help heatplot##zopt:{it:z_options}}
+    {help heatplot##yxopt:{it:yx_options}}
+    {help heatplot##gropt:{it:graph_options}}
+    {help heatplot##genopt:{it:generate_options}}
+    ]
+
+{pmore}
+    where {cmd:i.}{it:varname} is allowed for {it:y} and {it:x}
+
+{pstd}
+    Syntax 2: Heat plot from Mata matrix
+
+{p 8 15 2}
+    {cmd:heatplot} {opt mata(M)}
+    [{cmd:,}
+    {help heatplot##zopt:{it:z_options}}
+    {help heatplot##yxopt:{it:yx_options}}
+    {help heatplot##mopt:{it:matrix_options}}
+    {help heatplot##gropt:{it:graph_options}}
+    {help heatplot##genopt:{it:generate_options}}
+    ]
+
+{pstd}
+    Syntax 3: Heat plot from Stata matrix
+
+{p 8 15 2}
+    {cmd:heatplot} {it:matrix} [{cmd:,}
+    {help heatplot##zopt:{it:z_options}}
+    {help heatplot##mopt:{it:matrix_options}}
+    {help heatplot##gropt:{it:graph_options}}
+    {help heatplot##genopt:{it:generate_options}}
+    ]
+
+{synoptset 22}{...}
+{marker zopt}{synopthdr:z_options}
+{synoptline}
+{synopt :{helpb heatplot##levels:{ul:lev}els({it:#})}}number of color bins
+    {p_end}
+{synopt :{helpb heatplot##cuts:{ul:cut}s({it:numlist})}}custom cut points for color bins
+    {p_end}
+{synopt :{helpb heatplot##colors:{ul:c}olors({it:palette})}}color map to be used for the color bins
+    {p_end}
+{synopt :{helpb heatplot##statistic:{ul:s}tatistic({it:stat})}}(syntax 1 and 2 only) type of aggregation
+    {p_end}
+{synopt :{helpb heatplot##transform:{ul:trans}form({it:@exp})}}transform z values before binning
+        {p_end}
+{synopt :{helpb heatplot##size:size}}scale size of color fields by absolute values of z
+    {p_end}
+{synopt :{helpb heatplot##size:size({it:exp})}}(syntax 1 only) scale size of color fields by (average) values of {it:{help exp}}
+    {p_end}
+{synopt :{helpb heatplot##sizeprop:{ul:sizep}rop}}(syntax 1 only) scale size of color fields by relative frequencies
+    {p_end}
+{synopt :{helpb heatplot##recenter:{ul:rec}enter}}(syntax 1 only) recenter color fields at data center within field
+    {p_end}
+{synopt :{helpb heatplot##missing:{ul:m}issing{sf:[}({it:options}){sf:]}}}display missing values
+    {p_end}
+{synopt :{helpb heatplot##values:{ul:val}ues{sf:[}({it:options}){sf:]}}}display numeric values as marker labels
+    {p_end}
+{synopt :{helpb heatplot##hexagon:{ul:hex}agon{sf:[}({it:options}){sf:]}}}display color fields as hexagons
+    instead of rectangles; also see {helpb hexplot}
+    {p_end}
+{synopt :{helpb heatplot##scatter:scatter{sf:[}({it:palette}){sf:]}}}display marker symbols instead of color fields
+    {p_end}
+{synopt :{helpb heatplot##keylabels:{ul:keyl}abels({it:spec})}}determine how color fields are labelled in the legend
+    {p_end}
+{synopt :{helpb heatplot##p:p{sf:[}{it:#}{sf:]}({it:area_options})}}detailed rendering of color fields
+    {p_end}
+{synoptline}
+
+{synoptset 22}{...}
+{marker yxopt}{synopthdr:yx_options}
+{synoptline}
+{synopt :{helpb heatplot##bins:{sf:[}x{sf:|}y{sf:]}bins({it:spec})}}how
+    continuous {it:y} and {it:x} are binned
+    {p_end}
+{synopt :{helpb heatplot##bins:{sf:[}{ul:x}{sf:|}{ul:y}{sf:]}{ul:bw}idth({it:spec})}}how
+    continuous {it:y} and {it:x} are binned; alternative to {cmd:bins()}
+    {p_end}
+{synopt :{helpb heatplot##discrete:{sf:[}{ul:x}{sf:|}{ul:y}{sf:]}{ul:discr}ete{sf:[}({it:#}){sf:]}}}treat variables
+    as discrete and omit binning
+    {p_end}
+{synopt :{helpb heatplot##clip:{sf:[}{ul:l}{sf:|}{ul:r}|{ul:b}{sf:|}{ul:t}{sf:]}clip}}clip color fields at outer bounds
+    {p_end}
+{synopt :{helpb heatplot##fillin:{ul:fill}in({it:#} {sf:[}{it:#}{sf:]})}}(syntax 1 only) fill in empty combinations of (binned)
+    {it:y} and {it:x} by setting {it:z} to {it:#}
+    {p_end}
+{synoptline}
+
+{synoptset 22}{...}
+{marker mopt}{synopthdr:matrix_options}
+{synoptline}
+{synopt :{helpb heatplot##drop:drop({it:numlist})}}drop elements equal to one of the values in {it:numlist}
+    {p_end}
+{synopt :{helpb heatplot##lower:lower}}only display lower triangle
+    {p_end}
+{synopt :{helpb heatplot##upper:upper}}only display upper triangle
+    {p_end}
+{synopt :{helpb heatplot##nodiagonal:{ul:nodiag}onal}}omit diagonal
+    {p_end}
+{synoptline}
+
+{synoptset 22}{...}
+{marker gropt}{synopthdr:graph_options}
+{synoptline}
+{synopt :{helpb heatplot##nograph:{ul:nogr}aph}}do not create a graph
+    {p_end}
+{synopt :{helpb heatplot##label:{sf:[}{ul:no}{sf:]}{ul:l}abel}}do/do not use variable/value labels
+    {p_end}
+{synopt :{helpb heatplot##addplot:addplot({it:plot})}}add other plots to the graph
+    {p_end}
+{synopt :{helpb heatplot##addplotnopreserve:{ul:addplotnopr}eserve}}technical option relevant for {cmd:addplot()}
+    {p_end}
+{synopt :{helpb heatplot##by:by({it:varlist}{sf:[}, {it:byopts}{sf:]})}}(syntax 1 only) repeat plot by subgroups
+    {p_end}
+{synopt :{helpb heatplot##twopts:{it:twoway_options}}}general twoway options
+    {p_end}
+{synoptline}
+
+{synoptset 22}{...}
+{marker genopt}{synopthdr:generate_options}
+{synoptline}
+{synopt :{helpb heatplot##generate:{ul:gen}erate{sf:[}({it:namelist}){sf:]}}}store
+    the plotted data as variables
+    {p_end}
+{synopt :{helpb heatplot##replace:{ul:r}eplace}}allow overwriting existing variables
+    {p_end}
+{synopt :{helpb heatplot##nopreserve:{ul:nopres}erve}}replace the original data by
+    the plotted data
+    {p_end}
+{synoptline}
+
+{pstd}
+    {cmd:fweight}s, {cmd:aweight}s, {cmd:iweight}s, and {cmd:pweight}s are allowed with Syntax 1; see help {help weight}.
+
+
+{title:Description}
+
+{pstd}
+    {cmd:heatplot} creates heat plots from variables or matrices. One
+    example of a heat plot is a two-dimensional histogram in which the
+    frequencies of combinations of binned {it:y} and {it:x} are displayed as
+    rectangular (or hexagonal) fields using a color gradient. Another example
+    is a plot of a trivariate distribution where the color gradient is used to
+    visualize the (average) value of {it:z} within bins of {it:y} and
+    {it:x}. Yet another example is a plot that displays the contents of a matrix,
+    say, a correlation matrix or a spacial weights matrix, using a color
+    gradient. For a selection of different applications, see the
+    {help heatplot##examples:Examples} below.
+
+
+{title:Dependencies}
+
+{pstd}
+    {cmd:heatplot} requires {cmd:palettes} and, in Stata 14.2 or newer,
+    {cmd:colrspace}. To install these packages, type
+
+        {com}. ssc describe palettes, replace
+        . ssc describe colrspace, replace{txt}
+
+
+{title:Options}
+
+{dlgtab:z_options}
+
+{marker levels}{...}
+{phang}
+    {opt levels(#)} sets the number of color bins into which {it:z} (or the observed frequencies, if
+    {it:z} is omitted) is categorized, using a regular grid of intervals from the observed
+    minimum of (aggregated) {it:z} to the observed maximum. The intervals are right-open, except
+    for the last interval interval, which is right-closed. Only one of
+    {cmd:levels()} and {cmd:cuts()} is allowed.
+
+{marker cuts}{...}
+{phang}
+    {opt cuts(numlist)} specifies the thresholds used to categorize {it:z},
+    where {it:numlist} is an ascending number list; see help
+    {it:{help numlist}}. The intervals defined by the number list are right-open, except
+    for the last interval, which is right-closed. If the smallest number is
+    larger than the observed minimum of (aggregated) {it:z}, an extra interval
+    will be added at the bottom. Likewise, if the largest number is smaller than the
+    maximum, an extra interval will be added at the top. Within the number list,
+    you can use {cmd:@min} and {cmd:@max} to denote the
+    observed minimum and maximum, respectively. For example, you could type
+
+            {cmd:@min(20)@max}
+
+{pmore}
+    to create intervals from the minimum to the maximum in steps of 20. Furthermore,
+    expressions specified as {cmd:{c -(}}{it:{help exp}}{cmd:{c )-}} will be evaluated
+    before expanding the number list. For example, you could type
+
+            {cmd:{c -(}@min-.5{c )-}(1){@max+.5}}
+
+{pmore}
+    to create intervals from the observed minimum minus 0.5 to the observed maximum
+    plus 0.5 in steps of 1.
+
+{marker colors}{...}
+{phang}
+    {cmd:colors(}[{it:{help colorpalette##palette:palette}}] [{cmd:,}
+    {it:{help colorpalette##opts:palette_options}}]{cmd:)}
+    selects the color palette to be used for the bins of {it:z}. This also
+    sets the number of bins, unless {cmd:levels()} or {cmd:cuts()} is specified. {it:palette} is any
+    palette allowed by {helpb colorpalette} (which can also be a simple list of colors, see
+    help {it:{help colorpalette##colorlist:colorlist}}) and {it:palette_options} are
+    corresponding options. The default is {cmd:colors(viridis)}. For example, to use a
+    red to blue HCL color scheme, you could type {cmd:colors(hcl, bluered reverse)}. In
+    Stata versions older than 14.2, {cmd:heatplot} uses command
+    {helpb colorpalette9} instead of {helpb colorpalette}
+    and sets the default to {cmd:colors(hcl, viridis)}.
+
+{marker statistic}{...}
+{phang}
+    {opt statistic(stat)} sets the type of aggregation of z values within
+    yx-bins. {opt statistic()} is only allowed in syntax 1 and 2. {it:stat}
+    can be any statistic supported by {helpb collapse}. In addition, {it:stat}
+    can be {cmd:density} to compute densities (i.e. proportion divided by y-width*x-width),
+    {cmd:proportion} to compute proportions (rather than percentages), or
+    {cmd:asis} to skip aggregation. Use {cmd:asis} only if you are certain that all combinations of
+    (binned) {it:y} and {it:x} are unique; the only reason you may want to specify {cmd:asis} is to
+    save computer time. In syntax 1, if variable {it:z} is provided, the default
+    is {cmd:statistic(mean)}; if {it:z} is omitted, the
+    default is {cmd:statistic(percent)}. In syntax 2, the default is {cmd:statistic(sum)},
+    or, if {cmd:discrete} has been specified, {cmd:statistic(asis)}.
+
+{marker transform}{...}
+{phang}
+    {opt transform(@exp)} causes the (aggregated) z values to be transformed before applying
+    categorization. {it:@exp} is an expression (see {it:{help exp}}) in which {cmd:@} acts as
+    a placeholder for the values to be transformed. For example, to take the natural logarithm,
+    type {cmd:transform(ln(@))}.
+
+{marker size}{...}
+{phang}
+    {opt size}[{opt (exp)}] scales the size of the color fields in proportion to the absolute value
+    of (aggregated) z or, if {it:{help exp}} is specified, in proportion to the (average) evaluation of
+    {it:exp} (typically, {it:exp} is simply a variable name). Specifying {it:exp} is only allowed in syntax 1.
+
+{marker sizeprop}{...}
+{phang}
+    {opt sizeprop} scales the size of the color fields in proportion to the relative frequency
+    of the underlying data. {opt sizeprop} is only allowed in syntax 1.
+
+{marker recenter}{...}
+{phang}
+    {opt recenter} moves the color fields such that their center is at
+    the center of the included data (mean of y and x within the bin). This can
+    be useful if {cmd:size()} or {cmd:sizeprop} has been specified. {cmd:recenter} is only allowed
+    in syntax 1.
+
+{marker missing}{...}
+{phang}
+    {opt missing}[{opt (options)}] displays color fields for
+    combinations of (binned) y and x for which (aggregated)
+    z is equal to missing. {it:options} are:
+
+{phang2}
+    {opt l:abel(label)} sets the text to be used for missing values in the legend. The
+    default is {cmd:label("missing")}.
+
+{phang2}
+    {it:area_options} are options to affect the look of the missing
+    value color fields; see help {it:{help area_options}}. The default is to
+    display the fields in black.
+
+{marker values}{...}
+{phang}
+    {opt values}[{opt (options)}] displays the (aggregated) z values as marker labels in the middle of the color
+    fields. {it:options} are:
+
+{phang2}
+    {opth f:ormat(%fmt)} sets the display format for the values.
+
+{phang2}
+    {help marker_label_options} are options so affect the rendering of the marker labels; see help
+    {it:{help marker_label_options}}.
+
+{marker hexagon}{...}
+{phang}
+    {opt hexagon}[{opt (options)}] causes the color fields to be rendered as
+    hexagons instead of rectangles; also see {helpb hexplot}. {cmd:hexagon} and
+    {cmd:scatter} are not both allowed. {it:options} are:
+
+{phang2}
+    {opt vert:ical} arranges the hexagons vertically; this is the default.
+
+{phang2}
+    {opt hor:izontal} arranges the hexagons horizontally. Only one of {cmd:vertical}
+    and {cmd:horizontal} is allowed.
+
+{phang2}
+    {opt right} starts with a right-shifted hexagon row (the default).
+
+{phang2}
+    {opt left} starts with a left-shifted hexagon row. Only one of {cmd:right}
+    and {cmd:left} is allowed.
+
+{phang2}
+    {opt even} uses an even number of hexagon columns (the default).
+
+{phang2}
+    {opt odd} uses an odd number of hexagon columns. Only one of {cmd:even}
+    and {cmd:odd} is allowed. Each
+    x-axis bin (or y-axis bin if {cmd:horizontal} is specified) contains a
+    double column of hexagons. To use a single column for the last bin and thus have
+    an odd overall number of columns, specify {cmd:odd}.
+
+{marker scatter}{...}
+{phang}
+    {cmd:scatter}[{cmd:(}{it:{help smybolpalette##palette:palette}} [{cmd:,}
+    {it:{help smybolpalette##opts:palette_options}}]{cmd:)}] causes the heat
+    plot to be rendered as a scatter plot, with markers placed at the centers
+    of the bins. Only one of {cmd:scatter} and {cmd:hexagon} is allowed. {it:palette}
+    is any palette allowed by {helpb symbolpalette} (which can also be a simple list of
+    symbol styles, see help {it:{help symbolpalette##symbollist:symbollist}}) and
+    {it:palette_options} are corresponding options. The default is
+    {cmd:scatter(circle)}. If less symbol styles are specified than there are
+    bins of {it:z}, the symbols will be recycled.
+
+{marker keylabels}{...}
+{phang}
+    {opt keylabels(spec)} selects the legend keys to be labeled and affects the
+    formatting of the labels. {it:spec}
+    is
+
+            [{it:rule}] [{cmd:,} {it:suboptions} ]
+
+{pmore}
+    where {it:rule} may be
+
+{p2colset 13 23 25 2}{...}
+{p2col:{it:{help numlist}}}label the specified keys, where 1 refers to the first key (lowest value), 2 to the second, etc.
+    {p_end}
+{p2col:{cmd:minmax}}label the lower boundary of the first key and the upper boundary of the last key
+    {p_end}
+{p2col:{cmd:none}}omit the labels
+    {p_end}
+{p2col:{cmd:all}}label all keys; this is the default unless there are more than 24 keys
+    {p_end}
+
+{pmore}
+    and suboptions are:
+
+{phang2}
+    {opth f:ormat(%fmt)} sets the display format.
+
+{phang2}
+    {opt trans:form(@exp)} causes the values to be transformed before being
+    displayed. {it:@exp} is an expression in which {cmd:@} acts as
+    a placeholder for the values to be transformed. Typically, {it:@exp} will be
+    the inverse of the main {helpb heatplot##transform:transform()}
+    option. Example: {cmd:transform(ln(@))} would go along with
+    {cmd:keylab(,transform(exp(@))}.
+
+{phang2}
+    {opt inter:val} uses interval notation for the key labels, e.g. [0,10),
+    [10,20), etc. Only one of {cmd:interval} and {cmd:range()}
+    is allowed. The default is to display interval midpoints. {cmd:interval}
+    has no effect if {it:rule} is {cmd:minmax}.
+
+{phang2}
+    {opt ran:ge(#)} uses range notation for the key labels. Argument {it:#} specifies by how much the upper
+    bound should be reduced. For example, {cmd:range(1)} would display interval [10,20) as "10-19", whereas
+    {cmd:range(0.1)} would display the interval as "10-19.9". You may want to set an appropriate
+    display format when specifying {cmd:range()}; see {cmd:format()} above. {cmd:interval} and {cmd:range()}
+    are not both allowed. {cmd:range()} has no effect if {it:rule} is {cmd:minmax}.
+
+{phang2}
+    {opt area} displays legend keys as areas (rectangles) even if {cmd:scatter} has been specified.
+
+{phang2}
+    {it:textbox_options} are general options to affect the rendering of the
+    labels, such as {cmd:size()}; see {it:{help textbox_options}}.
+
+{phang2}
+    {it:legend_options} are further options affecting the rendering of the
+    legend; see {it:contents} and {it:location} in help {it:{help legend_options}}.
+
+{marker p}{...}
+{phang}
+    {opt p}[{it:#}]{opt (area_options)} provides options to affect the rendering of
+    the color fields; see help {it:{help area_options}}. For example, if you want
+    the fields to have black outlines, you can type {cmd:p(lcolor(black) lalign(center))}. Unnumbered
+    option {cmd:p()} affects all color fields. In addition, to address only the fields
+    corresponding a specific level of z, you can type {cmd:p}{it:#}{cmd:()}
+    where {it:#} is the number of the level. For example, if you want the color fields
+    of the 3rd level to have red outlines, you could type
+    {cmd:p3(lcolor(red))}.
+
+{dlgtab:yx_options}
+
+{marker bins}{...}
+{phang}
+    {opt bins(spec)} or {opt bwidth(spec)}, {opt ybins(spec)} or {opt ybwidth(spec)},
+    and {opt xbins(spec)} or {opt xbwidth(spec)} specify how
+    {it:y} and {it:x} are binned. These options are only allowed with
+    continuous variables. {cmd:bins()}/{cmd:bwidth()} affects both,
+    y and x. {cmd:ybins()}/{cmd:ybwidth()} and
+    {opt xbins()}/{cmd:xbwidth()} only affect y or x, respectively, taking precedence over
+    {cmd:bins()}/{cmd:bwidth()}. {it:spec} is
+
+            [{it:n} {it:lb} {it:ub}] [{cmd:,} {it:suboptions} ]
+
+{pmore}
+    for {cmd:bins()} and
+
+            [{it:width} {it:lb} {it:ub}] [{cmd:,} {it:suboptions} ]
+
+{pmore}
+    for {cmd:bwidth()} where
+
+{p2colset 13 23 25 2}{...}
+{p2col:{it:n}}number of bins
+    {p_end}
+{p2col:{it:width}}bin width
+    {p_end}
+{p2col:{it:lb}}midpoint (or lower bound) of first bin
+    {p_end}
+{p2col:{it:ub}}midpoint (or upper bound) of last bin
+    {p_end}
+
+{pmore}
+    If neither {it:n} nor {it:width} is specified, the
+    default is to set {it:n} to trunc(min(sqrt({it:N}), 10*ln({it:N})/ln(10))^(9/10))
+    (or a fraction thereof if {it:lb} and {it:ub} define a range that is
+    smaller than the observed data range), where {it:N} is the number of
+    observations. If {it:lb} and {it:ub} are
+    omitted, they are set to the observed minimum and maximum of the data,
+    respectively. Default values can also be requested
+    by typing "{cmd:.}" instead of providing a number. For example, you could type
+    {cmd:bins(. 0 10)} to create bins from 0 to 10 using the default number
+    of bins. Data outside the bin range
+    defined by {it:lb} and {it:ub} will not be displayed, but will be taken into
+    account when computing relative frequencies. {it:suboptions} are:
+
+{phang2}
+    {cmd:tight} causes {it:lb} and {it:ub} to be interpreted as outer bounds of
+    the first and last bins (the last bin will be right-inclusive in this
+    case). By default {it:lb} and {it:ub} are taken as bin midpoints (and
+    all bins are right-open). Specify {cmd:tight} to make the intervals
+    tight. If {cmd:tight} is specified together with {cmd:hexagon}, the first and last bins
+    are made as tight as possible given the shape and arrangement of the hexagons;
+    all data falling into the hexagons will be taken into account even if lower
+    than {it:lb} or larger than {it:ub} (unless option {cmd:clip} is specified).
+
+{phang2}
+    {cmd:ltight} makes the first bin tight, but leaves the last bin unchanged.
+
+{phang2}
+    {cmd:rtight} makes the last bin tight, but leaves the first bin unchanged.
+
+{pmore}
+    Note on setting the number of bins or the bin width for {cmd:hexagon}
+    plots: In a grid of true hexagons, the vertical distance between hexagons
+    midpoints is smaller than the horizontal distance by a factor of
+    sqrt(3)/2 (or vice versa if {cmd:hexagon(horizontal)} is specified). If applying graph's
+    {cmd:aspectratio(1)} option to produce a square plot, you may thus want to
+    set the number of y-bins to about 2/sqrt(3) times the number x-bins. Likewise, if
+    y and x have the same scale, you may want to set the width of y-bins to
+    sqrt(3)/2 times the width of x-bins.
+
+{marker discrete}{...}
+{phang}
+    {opt discrete}[{opt (#)}], {opt ydiscrete}[{opt (#)}], and {opt xdiscrete}[{opt (#)}]
+    specify that the variables are discrete and should not be binned. {cmd:discrete}
+    affects both, y and x. {cmd:ydiscrete} and {opt xdiscrete} only affect y or x,
+    respectively. Typically, treating variables as discrete only makes sense if
+    their values are regularly spaced, as {cmd:heatplot} will print color fields
+    centered at each observed value. Optional argument {it:#}
+    specifies the step width affecting the size of the color fields. The default
+    step width is 1. Categorical variables specified as {cmd:i.}{it:varname} are always treated as
+    discrete, but you can still use [{cmd:y}|{cmd:x}]{opt discrete(#)} to affect the size of the color fields
+    in this case.
+
+{marker clip}{...}
+{phang}
+    {cmd:clip}, {cmd:rclip}, {cmd:lclip}, {cmd:tclip}, and {cmd:bclip}
+    cause the color fields to be clipped at the lower and upper bounds of the
+    data range (or the range selected by {it:lb} and {it:ub} in {cmd:bins()} or {cmd:bwidth()}; data
+    outside the clipped range will be omitted in this case). {cmd:clip}
+    causes clipping on all four sides, {cmd:rclip} clips on the right,
+    {cmd:lclip} clips on the left, {cmd:tclip} clips at the top, and {cmd:bclip}
+    clips at the bottom (any combination is allowed). Density computation for an affected field will
+    be based on the remaining area of the field after clipping (but note that combining
+    {cmd:clip} with {cmd:statistic(density)} is currently not
+    supported if {cmd:hexagon} has been specified).
+
+{marker fillin}{...}
+{phang}
+    {opt fillin(value [size])} fills in empty combinations of (binned) {it:y} and {it:x}
+    by setting {it:z} to {it:value}. {it:value} can be {cmd:.} to set {it:z} to missing,
+    which will be displayed if the {cmd:missing} option has been specified. Optional {it:size}
+    is a number between 0 and 1 that sets the relative size of the color fields created by
+    {cmd:fillin()}; this is only relevant if {cmd:size()} or {cmd:sizeprop}
+    has been specified. {it:size} defaults to 1. {opt fillin()} is only allowed in syntax 1.
+
+{dlgtab:matrix_options}
+
+{marker drop}{...}
+{phang}
+    {opt drop(numlist)} drops cells that have a value equal to one of the
+    specified numbers. For example, type {cmd:drop(0)} to omit cells that contain 0.
+
+{marker lower}{...}
+{phang}
+    {opt lower} causes only the lower triangle of the matrix to be displayed. Only one of {cmd:lower} and
+    {cmd:upper} is allowed.
+
+{marker upper}{...}
+{phang}
+    {opt upper} causes only the upper triangle of the matrix to be displayed. Only one of {cmd:upper} and
+    {cmd:lower} is allowed.
+
+{marker nodiagonal}{...}
+{phang}
+    {opt nodiagonal} omits the diagonal of the matrix.
+
+{dlgtab:graph_options}
+
+{marker nograph}{...}
+{phang}
+    {opt nograph} omits creating a graph.
+
+{marker label}{...}
+{phang}
+    [{cmd:no}]{opt label} specifies whether variable and value labels should be used or not. In syntax 1
+    (plot from variables) the default is to use the variable labels of {it:y} and {it:x}
+    as axis titles and, for categorical variables, the value labels as tick
+    labels, if variable and value labels exist. Specify {cmd:nolabel} to
+    use variable names and values instead. In syntax 3 (plot from Stata matrix) the default is to use
+    row and column names as tick labels. Specify {cmd:label} to instruct {cmd:heatplot} to
+    look for corresponding variables in the dataset and use their labels. In syntax 3, {cmd:label}
+    has no effect.
+
+{marker addplot}{...}
+{phang}
+    {opt addplot(plot)} provides a way to add other plots to the generated graph; see help {it:{help addplot_option}}.
+
+{marker addplotnopreserve}{...}
+{phang}
+    {opt addplotnopreserve} drops the original data when drawing the graph even if
+    {cmd:addplot()} has been specified. By default, {cmd:heatplot} temporarily deletes the
+    original data to speed up drawing the graph. However, if {cmd:addplot()} is
+    specified, the original data is preserved because {cmd:addplot()} might
+    make use of it. If you are certain that {cmd:addplot()} does not make use of the original data
+    (for example, because it only contains a {helpb twoway_scatteri:scatteri} plot), you can
+    specify {cmd:addplotnopreserve} to save memory and computing time in large datasets.
+
+{marker by}{...}
+{phang}
+    {opt by(varlist [, byopts])} specifies that the plot should be repeated for each set of values of {varlist}; see help
+    {it:{help by_option}} (but note that suboption {cmd:total} is not supported). {cmd:by()} is only allowed in syntax 1. Computation
+    of relative frequencies and densities will be across all by-groups.
+
+{marker twopts}{...}
+{phang}
+    {it:twoway_options} are any other options documented in help {it:{help twoway_options}}.
+
+{dlgtab:generate_options}
+
+{marker generate}{...}
+{phang}
+    {opt generate}[{opt (namelist)}] stores the plotted data as new
+    variables. Depending on context, {cmd:generate()} might need to increase the
+    number of observations in the dataset to store the variables. The default
+    variable names are:
+
+            {cmd:_Z}       (aggregated) values of z
+            {cmd:_Zid}     categorized z
+            {cmd:_Y}       y midpoints
+            {cmd:_Yshape}  y shape coordinates
+            {cmd:_X}       x midpoints
+            {cmd:_Xshape}  x shape coordinates
+            {cmd:_Size}    field size (if appropriate)
+
+{pmore}
+    Alternatively, specify {it:{help namelist}} containing a custom list of
+    variable names. If the list contains fewer elements than the number of
+    variables to be generated, the above names are used for the remaining variables.
+
+{pmore}
+    If you only want to generate the variables without drawing a graph,
+    apply the {helpb heatplot##nograph:nograph} option.
+
+{marker replace}{...}
+{phang}
+    {opt replace} allows overwriting existing variables.
+
+{marker nopreserve}{...}
+{phang}
+    {opt nopreserve} instructs {cmd:generate()} to replace the original data by
+    the new variables. The default is to keep the original data.
+
+
+{marker examples}{...}
+{title:Examples}
+
+{dlgtab:Histograms}
+
+{pstd}
+    Bivariate histogram of weight and height:
+
+        . {stata webuse nhanes2, clear}
+        . {stata heatplot weight height, ylabel(25(25)175)}
+
+{pstd}
+    Same plot with hexagons instead of rectangles:
+
+        . {stata heatplot weight height, ylabel(25(25)175) hexagon}
+
+{pstd}
+    Make size of hexagons proportional to the relative frequency and shift
+    their midpoints to the empirical centers of the included data:
+
+{p 8 12 2}
+        . {stata heatplot weight height, ylabel(25(25)175) hexagon sizeprop recenter}
+
+{pstd}
+    Report counts instead of percentages and change labels in legend:
+
+{p 8 12 2}
+        . {stata heatplot weight height, ylabel(25(25)175) hexagon statistic(count) cuts(1(5)96 100) keylabels(, range(1))}
+
+{dlgtab:Trivariate distributions}
+
+{pstd}
+    The following graph displays the gender distribution (proportion female) by weight and height:
+
+{p 8 12 2}
+        . {stata webuse nhanes2, clear}
+{p_end}
+{p 8 12 2}
+        . {stata heatplot female weight height, hexagon ylabel(25(25)175) cuts(0(.05)1)}
+
+{pstd}
+    The same graph additionally taking into account relative frequencies:
+
+{p 8 12 2}
+        . {stata heatplot female weight height, hexagon ylabel(25(25)175) cuts(0(.05)1) sizeprop recenter}
+
+{pstd}
+    Distribution of the body mass index by gender and its relation to high blood pressure:
+
+{p 8 12 2}
+        . {stata heatplot highbp bmi i.female, xdiscrete(0.9) yline(18.5 25) cuts(0(.05).75) sizeprop recenter colors(inferno) plotregion(color(gs11)) ylabel(, nogrid)}
+
+{pstd}
+    Sea surface temperature by longitude, latitude, and date:
+
+{p 8 12 2}
+        . {stata sysuse surface, clear}
+{p_end}
+{p 8 12 2}
+        . {stata heatplot temperature longitude latitude, discrete(.5) statistic(asis) by(date, legend(off)) ylabel(30(1)38) aspectratio(1)}
+
+{pmore}
+     In this data, {cmd:longitude} and {cmd:latitude} are on a regular grid with a step width of half a degree. This is why
+     we treat them as discrete and set the step width to 0.5 using option {cmd:discrete(.5)}. Furthermore, for each
+     combination of {cmd:date}, {cmd:longitude}, and {cmd:latitude} there is only a single {cmd:temperature} measurement. This
+     is why we can add option {cmd:statistic(asis)}. The option is not strictly needed, it just skips unnecessary
+     computations.
+
+{pstd}
+    Same plot using hexagons:
+
+{p 8 12 2}
+        . {stata heatplot temperature longitude latitude, hexagon discrete(.5) clip statistic(asis) by(date, legend(off)) ylabel(30(1)38) aspectratio(1)}
+
+{pmore}
+    Option {cmd:clip} has been specified to clip the hexagons at the outer bounds of the data.
+
+{dlgtab:Correlation matrix}
+
+{pstd}
+    Correlation matrix including correlation coefficients as marker labels:
+
+{p 8 12 2}
+        . {stata sysuse auto, clear}
+{p_end}
+{p 8 12 2}
+        . {stata correlate price mpg trunk weight length turn foreign}
+{p_end}
+{p 8 12 2}
+        . {stata matrix C = r(C)}
+{p_end}
+{p 8 12 2}
+        . {stata heatplot C, values(format(%9.3f)) color(hcl, diverging intensity(.6)) legend(off) aspectratio(1)}
+
+{pstd}
+    Display only lower triangle and omit the diagonal:
+
+{p 8 12 2}
+        . {stata heatplot C, values(format(%9.3f)) color(hcl, diverging intensity(.6)) legend(off) aspectratio(1) lower nodiagonal}
+
+{dlgtab:Spacial weights matrix}
+
+{pstd}
+    Setup:
+
+        . {stata "copy http://www.stata-press.com/data/r15/homicide1990.dta ."}
+        . {stata "copy http://www.stata-press.com/data/r15/homicide1990_shp.dta ."}
+        . {stata use homicide1990}
+        . {stata spmatrix create contiguity W}      {it:(this might take a while)}
+        . {stata spmatrix matafromsp W id = W}
+
+{pstd}
+    Heat plot with default settings, ignoring cells (i.e. weights) that are
+    equal to zero:
+
+        . {stata heatplot mata(W), drop(0) aspectratio(1)}
+
+{pstd}
+    Hexagon plot with fine-grained resolution:
+
+        . {stata heatplot mata(W), drop(0) aspectratio(1) hexagon bins(100)}
+
+{pstd}
+    Plotting each cell individually using the {cmd:discrete} option:
+
+{p 8 12 2}
+        . {stata heatplot mata(W), drop(0) aspectratio(1) discrete color(black) p(lalign(center))}
+
+{pmore}
+    Since in this matrix all (non-zero) weights have the same value, we only need a single
+    color, requested by {cmd:color(black)}. Furthermore, {cmd:p(lalign(center))} has been specified
+    to prevent the individual color fields from becoming (almost) invisible.
+
+{pstd}
+    A very similar plot can also be produced using the {cmd:scatter} option:
+
+{p 8 12 2}
+        . {stata heatplot mata(W), drop(0) aspectratio(1) discrete color(black) scatter p(ms(p))}
+
+
+{title:Returned results}
+
+{pstd} Scalars:
+
+{p2colset 5 20 20 2}{...}
+{p2col : {cmd:r(N)}}number of observations
+    {p_end}
+{p2col : {cmd:r(levels)}}number of z levels (colors)
+    {p_end}
+{p2col : {cmd:r(y_k)}}number of y bins
+    {p_end}
+{p2col : {cmd:r(y_wd)}}y bin width
+    {p_end}
+{p2col : {cmd:r(y_lb)}}midpoint (or lower bound) of first y bin
+    {p_end}
+{p2col : {cmd:r(y_ub)}}midpoint (or upper bound) of last y bin
+    {p_end}
+{p2col : {cmd:r(x_k)}}number of x bins
+    {p_end}
+{p2col : {cmd:r(x_wd)}}x bin width
+    {p_end}
+{p2col : {cmd:r(x_lb)}}midpoint (or lower bound) of first x bin
+    {p_end}
+{p2col : {cmd:r(x_ub)}}midpoint (or upper bound) of last x bin
+    {p_end}
+
+{pstd} Macros:
+
+{p2col : {cmd:r(ztitle)}}legend title
+    {p_end}
+{p2col : {cmd:r(ytitle)}}y-axis title
+    {p_end}
+{p2col : {cmd:r(xtitle)}}x-axis title
+    {p_end}
+{p2col : {cmd:r(colors)}}list of color codes
+    {p_end}
+{p2col : {cmd:r(keylabels)}}legend keys
+    {p_end}
+
+{pstd} Matrices:
+
+{p2col : {cmd:r(cuts)}}cut points used to categorize z
+    {p_end}
+
+
+{title:Author}
+
+{pstd}
+    Ben Jann, University of Bern, ben.jann@soz.unibe.ch
+
+{pstd}
+    Thanks for citing this software as follows:
+
+{pmore}
+    Jann, B. (2019). heatplot: Stata module to create heat plots and hexagon plots. Available from
+    {browse "http://ideas.repec.org/c/boc/bocode/s?.html"}.
+
+
+{title:Also see}
+
+{psee}
+    Online:  help for {helpb hexplot}, {helpb colorpalette},
+    {helpb twoway contour}
+
