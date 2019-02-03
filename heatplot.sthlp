@@ -1,5 +1,5 @@
 {smcl}
-{* 30jan2019}{...}
+{* 03feb2019}{...}
 {hi:help heatplot}
 {hline}
 
@@ -57,6 +57,8 @@
 {synopt :{helpb heatplot##cuts:{ul:cut}s({it:numlist})}}custom cut points for color bins
     {p_end}
 {synopt :{helpb heatplot##colors:{ul:c}olors({it:palette})}}color map to be used for the color bins
+    {p_end}
+{synopt :{helpb heatplot##backfill:{ul:backf}ill{sf:[}({it:options}){sf:]}}}fill background using first or last color
     {p_end}
 {synopt :{helpb heatplot##statistic:{ul:s}tatistic({it:stat})}}(syntax 1 and 2 only) type of aggregation
     {p_end}
@@ -226,6 +228,21 @@
     Stata versions older than 14.2, {cmd:heatplot} uses command
     {helpb colorpalette9} instead of {helpb colorpalette}
     and sets the default to {cmd:colors(hcl, viridis)}.
+
+{marker backfill}{...}
+{phang}
+    {cmd:backfill}[{cmd:(}{it:options}{cmd:)}] fills the background (the plotregion) 
+    using the first color of the colors provided by {cmd:colors()}. This makes 
+    sense, for example, in a bivariate histogram. When applying {cmd:backfill}, 
+    you may want to turn grid lines off; in most situations this can be achieved by
+    typing {cmd:ylabel(, nogrid)} and/or {cmd:xlabel(, nogrid)}. {it:options} are:
+
+{phang2}
+    {cmdab:l:ast} uses the last color instead of the first color.
+
+{phang2}
+    {cmdab:i:nner} only colors the inner plotregion. The default is to color both,
+    the inner and the outer plotregion.
 
 {marker statistic}{...}
 {phang}
@@ -510,7 +527,9 @@
     which will be displayed if the {cmd:missing} option has been specified. Optional {it:size}
     is a number between 0 and 1 that sets the relative size of the color fields created by
     {cmd:fillin()}; this is only relevant if {cmd:size()} or {cmd:sizeprop}
-    has been specified. {it:size} defaults to 1. {opt fillin()} is only allowed in syntax 1.
+    has been specified. {it:size} defaults to 1. {opt fillin()} is only allowed in 
+    syntax 1. See {helpb heatplot##backfill:backfill} for a more efficient (but less 
+    flexible) approach to color empty combinations of {it:y} and {it:x}.
 
 {dlgtab:matrix_options}
 
@@ -622,22 +641,29 @@
         . {stata heatplot weight height, ylabel(25(25)175)}
 
 {pstd}
-    Same plot with hexagons instead of rectangles:
+    Using first color for background:
 
-        . {stata heatplot weight height, ylabel(25(25)175) hexagon}
+{p 8 12 2}
+        . {stata heatplot weight height, ylabel(25(25)175, nogrid) backfill colors(magma, reverse)}
+
+{pstd}
+    Using hexagons instead of rectangles:
+
+{p 8 12 2}
+        . {stata heatplot weight height, ylabel(25(25)175, nogrid) backfill colors(magma, reverse) hexagon}
 
 {pstd}
     Make size of hexagons proportional to the relative frequency and shift
     their midpoints to the empirical centers of the included data:
 
 {p 8 12 2}
-        . {stata heatplot weight height, ylabel(25(25)175) hexagon sizeprop recenter}
+        . {stata heatplot weight height, ylabel(25(25)175, nogrid) backfill colors(magma, reverse) hexagon sizeprop recenter}
 
 {pstd}
     Report counts instead of percentages and change labels in legend:
 
 {p 8 12 2}
-        . {stata heatplot weight height, ylabel(25(25)175) hexagon statistic(count) cuts(1(5)96 100) keylabels(, range(1))}
+        . {stata heatplot weight height, ylabel(25(25)175, nogrid) backfill colors(magma, reverse) hexagon sizeprop recenter statistic(count) cuts(1(5)96 100) keylabels(, range(1))}
 
 {dlgtab:Trivariate distributions}
 

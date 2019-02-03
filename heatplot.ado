@@ -1,4 +1,4 @@
-*! version 1.0.0  29jan2019  Ben Jann
+*! version 1.0.1  01feb2019  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -22,7 +22,7 @@ program heatplot, rclass
     local zopts LEVels(int 0) CUTs(str) Colors(str asis) size ///
         TRANSform(str asis) MISsing MISsing2(str) VALues VALues2(str) ///
         HEXagon HEXagon2(str asis) scatter SCATTER2(str asis) ///
-        KEYLabels(str asis) p(str)
+        KEYlabels(str asis) p(str) BACKFill BACKFill2(str)
     local yxopts ///
          bins(str)  BWidth(str)  DISCRete  DISCRete2(numlist max=1) ///
         xbins(str) XBWidth(str) XDISCRete XDISCRete2(numlist max=1) ///
@@ -119,6 +119,8 @@ program heatplot, rclass
     if `"`values2'"'!=""  local values values
     if "`values'"!=""     _parse_values, `values2'
     _parse_keylab `keylabels'
+    if `"`backfill2'"'!="" local backfill backfill
+    if "`backfill'"!=""    _parse_backfill, `backfill2'
     // - handle bins()
     if inlist(`syntax',1,2) {
         if `"`bins'`bwidth'"'!="" {
@@ -486,9 +488,38 @@ program heatplot, rclass
         if c(stata_version)<14.2 local colors "viridis"
         else                     local colors "hcl, viridis"
     }
-    _colorpalette `levels' `colors'
-    if `levels'==0 local levels = r(n)
+    if `levels'==0 {
+        _colorpalette `levels' `colors'
+        if `"`backfill'"'!="" local levels = r(n) - 1
+        else                  local levels = r(n)
+    }
+    else {
+        if `"`backfill'"'!="" _colorpalette `=`levels'+1' `colors'
+        else                  _colorpalette `levels' `colors'
+    }
     local colors `"`r(p)'"'
+    if `"`backfill'"'!="" {
+        if `"`backfill_last'"'=="" {
+            gettoken backfill_color colors0 : colors, quotes
+            gettoken colors colors0 : colors0, quotes
+            while (1) {
+                gettoken color colors0 : colors0, quotes
+                if `"`color'"'=="" continue, break
+                local colors `"`colors' `color'"'
+            }
+        }
+        else {
+            gettoken colors colors0 : colors, quotes
+            while (1) {
+                gettoken color colors0 : colors0, quotes
+                if `"`colors0'"'=="" { // last color
+                    local backfill_color `"`color'"'
+                    continue, break
+                }
+                local colors `"`colors' `color'"'
+            }
+        }
+    }
     if "`missing'"!="" {
         local legend - " " 1 `missing_label'
     }
@@ -737,9 +768,18 @@ program heatplot, rclass
     else if "`ycat'"!="" {
         local yhor ylabel(, angle(0))
     }
+    if "`backfill'"!="" {
+        if "`backfill_inner'"!="" {
+            local backfill `"plotregion(icolor(`backfill_color'))"'
+        }
+        else {
+            local backfill `"plotregion(color(`backfill_color') icolor(`backfill_color'))"'
+        }
+    }
     if "`graph'"=="" {
         graph twoway `plots', ytitle(`"`ytitle'"') xtitle(`"`xtitle'"') ///
-            `yscale' `yhor' `ylabel' `xscale' `xlabel' `legendopt' `byopt' `options'
+            `yscale' `yhor' `ylabel' `xscale' `xlabel' `backfill' ///
+            `legendopt' `byopt' `options'
     }
 
     // generate
@@ -962,6 +1002,12 @@ program _parse_values
     }
     c_local valuesfmt `format'
     c_local values2 `options'
+end
+
+program _parse_backfill
+    syntax [, Inner Last ]
+    c_local backfill_inner `inner'
+    c_local backfill_last `last'
 end
 
 program _parse_missing
@@ -1415,7 +1461,6 @@ program _colorpalette
         if `"`n'`ipolate'"'=="" local n n(`N')
     }
     colorpalette `p', nograph `n' `ipolate' `options'
-    
 end
 
 program _symbolpalette
