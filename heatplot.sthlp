@@ -1,5 +1,5 @@
 {smcl}
-{* 03feb2019}{...}
+{* 20may2019}{...}
 {hi:help heatplot}
 {hline}
 
@@ -71,6 +71,8 @@
 {synopt :{helpb heatplot##sizeprop:{ul:sizep}rop}}(syntax 1 only) scale size of color fields by relative frequencies
     {p_end}
 {synopt :{helpb heatplot##recenter:{ul:rec}enter}}(syntax 1 only) recenter color fields at data center within field
+    {p_end}
+{synopt :{helpb heatplot##srange:{ul:sr}ange({it:lo} {sf:[}{it:up}{sf:]})}}set range of relative sizes of color fields
     {p_end}
 {synopt :{helpb heatplot##missing:{ul:m}issing{sf:[}({it:options}){sf:]}}}display missing values
     {p_end}
@@ -283,6 +285,18 @@
     be useful if {cmd:size()} or {cmd:sizeprop} has been specified. {cmd:recenter} is only allowed
     in syntax 1.
 
+{marker srange}{...}
+{phang}
+    {cmd:srange(}{it:lo} [{it:up}]{cmd:)} sets the range of relative sizes of
+    the color fields. {cmd:srange()} is only relevant if {cmd:size()} or 
+    {cmd:sizeprop} has been specified. Let {it:v}, {it:v}>=0, be the variable to which the
+    field sizes should be proportional (e.g. relative frequencies). The field 
+    sizes are then computed as {it:lo} + {it:v}/max({it:v}) * 
+    ({it:up} - {it:lo}). The default is {it:lo}=0 and {it:up}=1, that is, the smallest
+    possible field has size 0 (invisible) and the largest field has size 1
+    (full size). Specify, for example, {cmd:srange(0.5)} to set the size of the 
+    smallest possible field to 0.5 (half of full size).
+
 {marker missing}{...}
 {phang}
     {opt missing}[{opt (options)}] displays color fields for
@@ -342,8 +356,8 @@
 
 {marker scatter}{...}
 {phang}
-    {cmd:scatter}[{cmd:(}{it:{help smybolpalette##palette:palette}} [{cmd:,}
-    {it:{help smybolpalette##opts:palette_options}}]{cmd:)}] causes the heat
+    {cmd:scatter}[{cmd:(}{it:{help symbolpalette##palette:palette}} [{cmd:,}
+    {it:{help symbolpalette##opts:palette_options}}]{cmd:)}] causes the heat
     plot to be rendered as a scatter plot, with markers placed at the centers
     of the bins. Only one of {cmd:scatter} and {cmd:hexagon} is allowed. {it:palette}
     is any palette allowed by {helpb symbolpalette} (which can also be a simple list of
@@ -831,7 +845,7 @@
 
 {pmore}
     Jann, B. (2019). heatplot: Stata module to create heat plots and hexagon plots. Available from
-    {browse "http://ideas.repec.org/c/boc/bocode/s458595.html"}.
+    {browse "http://ideas.repec.org/c/boc/bocode/s458598.html"}.
 
 
 {title:Also see}

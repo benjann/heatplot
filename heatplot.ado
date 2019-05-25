@@ -1,4 +1,4 @@
-*! version 1.0.1  01feb2019  Ben Jann
+*! version 1.0.2  25may2019  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -19,7 +19,8 @@ program heatplot, rclass
 
     // syntax
     // - list of common options
-    local zopts LEVels(int 0) CUTs(str) Colors(str asis) size ///
+    local zopts LEVels(int 0) CUTs(str) Colors(str asis) ///
+        size srange(numlist max=2 >=0) ///
         TRANSform(str asis) MISsing MISsing2(str) VALues VALues2(str) ///
         HEXagon HEXagon2(str asis) scatter SCATTER2(str asis) ///
         KEYlabels(str asis) p(str) BACKFill BACKFill2(str)
@@ -423,7 +424,7 @@ program heatplot, rclass
     qui drop if `x'>=. | `y'>=. // no longer needed (missings were relevant 
                                 // only for computing percentages by collapse)
 
-    // compute areas in case of cut
+    // compute areas in case of clip
     if "`statistic0'"=="density" {
         if "`yclip'`xclip'"!="" {
             tempname CTAG
@@ -465,8 +466,17 @@ program heatplot, rclass
     }
     if "`z2'"!="" {
         if "`scatter'"=="" {
+            gettoken size_min size_max : srange
+            gettoken size_max          : size_max
             su `z2', meanonly
-            qui replace `z2' = sqrt(`z2'/r(max))
+            if "`size_min'"=="" {
+                qui replace `z2' = sqrt(`z2'/r(max))
+            }
+            else {
+                if "`size_max'"=="" local size_max 1
+                qui replace `z2' = sqrt(`z2'/r(max) * ///
+                    (`size_max'-`size_min') + `size_min')
+            }
         }
     }
     
@@ -475,14 +485,28 @@ program heatplot, rclass
                        `y' `y_K' `y_LB' `y_WD' "`ytight'" "`ycat'`ydiscrete'" ///
                        `z' "`z2'" "`by'" "`hexagon'" `hexorder' `hexodd'
     
-    // determine range of data and set levels if cuts specified
+    // determine range of data and set levels if cuts contains @min/@max
     su `z', meanonly
     scalar `MIN' = r(min)
     scalar `MAX' = r(max)
     if "`cuts'"!="" {
         _parse_cuts `CUTS' `MIN' `MAX' `"`cuts'"'
     }
-
+    
+    // if cuts() has been specified: add intervals at bottom and top, if needed
+    capt confirm matrix `CUTS'
+    if _rc==0 {
+        if `MIN'<`CUTS'[1,1] {
+            local ++levels
+            matrix `CUTS' = J(1, `levels'+1, .) \ (`MIN', `CUTS')
+            matrix `CUTS' = `CUTS'[2,1...] // so that colnames are correct
+        }
+        if `MAX'>`CUTS'[1,`levels'+1] {
+            local ++levels
+            matrix `CUTS' = `CUTS', `MAX'
+        }
+    }
+    
     // get colors
     if "`colors'"=="" {
         if c(stata_version)<14.2 local colors "viridis"
@@ -1058,14 +1082,6 @@ program _parse_cuts
         if `cut'==`min'      matrix `CUTS'[1,`i'] = `MIN' // preserve precision
         else if `cut'==`max' matrix `CUTS'[1,`i'] = `MAX' // preserve precision
         else matrix `CUTS'[1,`i'] = `cut'
-    }
-    if `MIN'<`CUTS'[1,1] {
-        matrix `CUTS' = `MIN', `CUTS'
-        local ++levels
-    }
-    if `MAX'>`CUTS'[1,`levels'] {
-        matrix `CUTS' = `CUTS', `MAX'
-        local ++levels
     }
     c_local cuts
     c_local levels = `levels' - 1
