@@ -1,4 +1,4 @@
-*! version 1.0.2  25may2019  Ben Jann
+*! version 1.0.3  31may2019  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -32,13 +32,13 @@ program heatplot, rclass
     local matopts lower upper noDIAGonal drop(numlist)
     local gopts noGRaph addplot(str asis) ADDPLOTNOPReserve ///
         GENerate GENerate2(str) Replace noPREServe ///
-        YAXis(passthru) XAXis(passthru) * 
+        YAXis(passthru) XAXis(passthru) *
     _parse comma matrix rest : 0
     capt _parse_mata, `matrix'
     if _rc==0 {                                   // syntax 2: heatplot mata(M)
         local syntax 2
         local 0 `"`rest'"'
-        syntax [, `zopts' Statistic(name) `yxopts' `matopts' noLabel `gopts' ]
+        syntax [, `zopts' Statistic(name) fast `yxopts' `matopts' noLabel `gopts' ]
         capt mata mata describe `mata'
         if _rc {
             di as err `"Mata matrix `mata' not found"'
@@ -53,7 +53,7 @@ program heatplot, rclass
     else {                                        // syntax 1: heatplot [z] y x
         local syntax 1
         syntax varlist(min=2 max=3 fv) [if] [in] [aw fw iw pw] [, ///
-            `zopts' Statistic(name) SIZEProp SIZE2(str asis) RECenter ///
+            `zopts' Statistic(name) fast SIZEProp SIZE2(str asis) RECenter ///
             `yxopts' FILLin(numlist max=2 missingok) noLabel `gopts' ]
     }
     // - handle hexagon option (must do this first)
@@ -356,8 +356,8 @@ program heatplot, rclass
     if inlist(`syntax',1,2) {
         foreach v in x y {
             if "``v'cat'"!="" ///
-                _makebin_categorical `v' ``v'' ``v'0' ``v'_K' ``v'_LB' ``v'_MIN' ///
-                ``v'_UB' ``v'_MAX' "`label'"
+                _makebin_categorical "`fast'" `v' ``v'' ``v'0' ``v'_K' ///
+                    ``v'_LB' ``v'_MIN' ``v'_UB' ``v'_MAX' "`label'"
             else if "``v'discrete'"!="" {
                  if `syntax'==1 _makebin_discrete ``v'' ``v'0' ``v'_K' ///
                      ``v'_LB' ``v'_MIN' ``v'_UB' ``v'_MAX' ``v'_WD'
@@ -411,7 +411,9 @@ program heatplot, rclass
             local statistic0 proportion
             local statistic percent
         }
-        collapse (`statistic') `z0' `z2stat' `xrcstat' `yrcstat' ///
+        if "`fast'"!="" local collapse gcollapse // requires gtools
+        else            local collapse collapse
+        `collapse' (`statistic') `z0' `z2stat' `xrcstat' `yrcstat' ///
             `wgt', fast by(`by' `y' `x')
         if "`statistic0'"=="density" {
             local statistic `statistic0'
@@ -1150,17 +1152,38 @@ program _parse_generate
     c_local nopreserve `preserve'
 end
 
-program _makebin_categorical, sortpreserve
-    args xy v x K LB MIN UB MAX label
+program _makebin_categorical
+    gettoken fast 0 : 0
+    gettoken xy   0 : 0
+    if "`fast'"=="" _makebin_categorical_std `0'
+    else            _makebin_categorical_fast `0'
+    c_local `xy'label `xy'label(`lbls')
+end
+
+program _makebin_categorical_std, sortpreserve
+    args v x K LB MIN UB MAX label
     sort `x'
     qui by `x': gen double `v' = (`x'!=`x'[_n-1])
-    mata: collectlbls() // returns local lbls and sets scalar K
+    mata: collectlbls("`x'", "`v'") // returns local lbls and sets scalar K
     qui replace `v' = `v' + `v'[_n-1] in 2/l
     scalar `LB' = 1
     scalar `MIN' = 1
     scalar `UB' = `K'
     scalar `MAX' = `K'
-    c_local `xy'label `xy'label(`lbls')
+    c_local lbls `"`lbls'"'
+end
+
+program _makebin_categorical_fast  // requires gtoolss
+    args v x K LB MIN UB MAX label
+    tempvar tag
+    gegen long `v' = group(`x')
+    gegen byte `tag' = tag(`v')
+    mata: collectlbls("`x'", "`tag'", "`v'") // returns local lbls and sets scalar K
+    scalar `LB' = 1
+    scalar `MIN' = 1
+    scalar `UB' = `K'
+    scalar `MAX' = `K'
+    c_local lbls `"`lbls'"'
 end
 
 program _makebin_discrete
@@ -1531,23 +1554,37 @@ void _writematamatrixtodata(real matrix M)
     else if (upper)  k = k - (d*d-d)/2 - (r>c ? (r-c)*c : 0)
     N = st_nobs()
     if (N < k) st_addobs(k - N)
-    k = 0
-    for (i=1; i<=r; i++) {
-        for (j=(upper ? i : 1); j<=(lower ? min((i,c)) : c); j++) {
-            if (nodiag) {
-                if (i==j) continue
-            }
-            if (hasdrop) {
-                if (anyof(drop, M[i,j])) continue
-            }
-            k++
-            _st_store(k, z, M[i,j])
-            _st_store(k, y, i)
-            _st_store(k, x, j)
+    if (!(hasdrop+lower+upper+nodiag)) {
+        // write full matrix (faster than the general code below)
+        k = 0
+        for (j=1; j<=c; j++) {
+            i = k + 1; k = j * r
+            st_store((i,k), z, M[,j])
+            st_store((i,k), y, 1::r)
+            st_store((i,k), x, J(r,1,j))
         }
     }
-    if (k < st_nobs() & k>N) {  // possible if hasdrop
-        stata("qui keep in 1/" + strofreal(k))
+    else {
+        // write partial matrix (general element-by-element code; speed could
+        // be improved by writing custom code for different situations)
+        k = 0
+        for (i=1; i<=r; i++) {
+            for (j=(upper ? i : 1); j<=(lower ? min((i,c)) : c); j++) {
+                if (nodiag) {
+                    if (i==j) continue
+                }
+                if (hasdrop) {
+                    if (anyof(drop, M[i,j])) continue
+                }
+                k++
+                _st_store(k, z, M[i,j])
+                _st_store(k, y, i)
+                _st_store(k, x, j)
+            }
+        }
+        if (k < st_nobs() & k>N) {  // possible if hasdrop
+            stata("qui keep in 1/" + strofreal(k))
+        }
     }
     if (st_local("syntax")=="3" | st_local("ydiscrete")!="") {
         ymin = 1 + (lower & nodiag); ymax = (upper ? min((r,c-nodiag)) : r)
@@ -1622,33 +1659,37 @@ void countbins(
     st_numscalar(st_local("K"), k)
 }
 
-void collectlbls()
+void collectlbls(string scalar X, string scalar tag, | string scalar ID)
 {
-    real scalar             i, str
+    real scalar             i, str, k
     string scalar           lbls, lab, vlab
     transmorphic colvector  x
+    real colvector          id
     pragma unset            lbls
     
-    str = st_isstrvar(st_local("x"))
+    str = st_isstrvar(X)
     if (str) {
-        x = st_sdata(., st_local("x"), st_local("v"))
+        x = st_sdata(., X, tag)
     }
     else {
-        x = st_data(., st_local("x"), st_local("v"))
-        vlab = st_varvaluelabel(st_local("x"))
+        x = st_data(., X, tag)
+        vlab = st_varvaluelabel(X)
     }
-    for (i=1; i<=rows(x); i++) {
+    k = rows(x)
+    if (ID=="") id = 1::k
+    else        id = st_data(., ID, tag)
+    for (i=1; i<=k; i++) {
         if (str) lab = x[i]
         else if (vlab!="") {
             lab = st_vlmap(vlab, x[i])
             if (lab=="") lab = strofreal(x[i])
         }
         else lab = strofreal(x[i])
-        lbls = lbls + (i>1 ? " " : "") + strofreal(i) + " " +
+        lbls = lbls + (i>1 ? " " : "") + strofreal(id[i]) + " " +
                     "`" + `"""' + lab + `"""' + "'"
     }
     st_local("lbls", lbls)
-    st_numscalar(st_local("K"), rows(x))
+    st_numscalar(st_local("K"), k)
 }
 
 void fillingaps()

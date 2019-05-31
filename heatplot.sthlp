@@ -62,6 +62,8 @@
     {p_end}
 {synopt :{helpb heatplot##statistic:{ul:s}tatistic({it:stat})}}(syntax 1 and 2 only) type of aggregation
     {p_end}
+{synopt :{helpb heatplot##fast:fast}}(syntax 1 and 2 only) use fast aggregation; requires {helpb gtools}
+    {p_end}
 {synopt :{helpb heatplot##transform:{ul:trans}form({it:@exp})}}transform z values before binning
         {p_end}
 {synopt :{helpb heatplot##size:size}}scale size of color fields by absolute values of z
@@ -173,11 +175,18 @@
 {title:Dependencies}
 
 {pstd}
-    {cmd:heatplot} requires {cmd:palettes} and, in Stata 14.2 or newer,
-    {cmd:colrspace}. To install these packages, type
+    {cmd:heatplot} requires {cmd:palettes} (Jann 2018) and, in Stata 14.2 or newer,
+    {cmd:colrspace} (Jann 2019). To install these packages, type
 
-        {com}. ssc describe palettes, replace
-        . ssc describe colrspace, replace{txt}
+        {com}. ssc install palettes, replace
+        . ssc install colrspace, replace{txt}
+
+{pstd}
+    The {cmd:fast} option requires {cmd:gtools} (Caceres Bravo 2018). To install
+    {cmd:gtools}, type
+
+        {com}. ssc install gtools, replace
+        . gtools, upgrade{txt}
 
 
 {title:Options}
@@ -233,9 +242,9 @@
 
 {marker backfill}{...}
 {phang}
-    {cmd:backfill}[{cmd:(}{it:options}{cmd:)}] fills the background (the plotregion) 
-    using the first color of the colors provided by {cmd:colors()}. This makes 
-    sense, for example, in a bivariate histogram. When applying {cmd:backfill}, 
+    {cmd:backfill}[{cmd:(}{it:options}{cmd:)}] fills the background (the plotregion)
+    using the first color of the colors provided by {cmd:colors()}. This makes
+    sense, for example, in a bivariate histogram. When applying {cmd:backfill},
     you may want to turn grid lines off; in most situations this can be achieved by
     typing {cmd:ylabel(, nogrid)} and/or {cmd:xlabel(, nogrid)}. {it:options} are:
 
@@ -259,6 +268,15 @@
     is {cmd:statistic(mean)}; if {it:z} is omitted, the
     default is {cmd:statistic(percent)}. In syntax 2, the default is {cmd:statistic(sum)},
     or, if {cmd:discrete} has been specified, {cmd:statistic(asis)}.
+
+{marker fast}{...}
+{phang}
+    {opt fast} performs some of the computations using fast commands provided
+    by {helpb gtools} (e.g. {helpb gcollapse} instead of official {helpb collapse}
+    for aggregation). Use this option to speed up computations in very large
+    datasets. The {helpb gtools} package (Caceres Bravo 2018) has to be
+    installed on the system; see {browse "http://github.com/mcaceresb/stata-gtools"}
+    for more information. Option {opt fast} is only allowed in syntax 1 and 2.
 
 {marker transform}{...}
 {phang}
@@ -288,13 +306,13 @@
 {marker srange}{...}
 {phang}
     {cmd:srange(}{it:lo} [{it:up}]{cmd:)} sets the range of relative sizes of
-    the color fields. {cmd:srange()} is only relevant if {cmd:size()} or 
+    the color fields. {cmd:srange()} is only relevant if {cmd:size()} or
     {cmd:sizeprop} has been specified. Let {it:v}, {it:v}>=0, be the variable to which the
-    field sizes should be proportional (e.g. relative frequencies). The field 
-    sizes are then computed as {it:lo} + {it:v}/max({it:v}) * 
+    field sizes should be proportional (e.g. relative frequencies). The field
+    sizes are then computed as {it:lo} + {it:v}/max({it:v}) *
     ({it:up} - {it:lo}). The default is {it:lo}=0 and {it:up}=1, that is, the smallest
     possible field has size 0 (invisible) and the largest field has size 1
-    (full size). Specify, for example, {cmd:srange(0.5)} to set the size of the 
+    (full size). Specify, for example, {cmd:srange(0.5)} to set the size of the
     smallest possible field to 0.5 (half of full size).
 
 {marker missing}{...}
@@ -541,8 +559,8 @@
     which will be displayed if the {cmd:missing} option has been specified. Optional {it:size}
     is a number between 0 and 1 that sets the relative size of the color fields created by
     {cmd:fillin()}; this is only relevant if {cmd:size()} or {cmd:sizeprop}
-    has been specified. {it:size} defaults to 1. {opt fillin()} is only allowed in 
-    syntax 1. See {helpb heatplot##backfill:backfill} for a more efficient (but less 
+    has been specified. {it:size} defaults to 1. {opt fillin()} is only allowed in
+    syntax 1. See {helpb heatplot##backfill:backfill} for a more efficient (but less
     flexible) approach to color empty combinations of {it:y} and {it:x}.
 
 {dlgtab:matrix_options}
@@ -758,7 +776,7 @@
         . {stata "copy http://www.stata-press.com/data/r15/homicide1990.dta ."}
         . {stata "copy http://www.stata-press.com/data/r15/homicide1990_shp.dta ."}
         . {stata use homicide1990}
-        . {stata spmatrix create contiguity W}      {it:(this might take a while)}
+        . {stata spmatrix create contiguity W}      {it:(this may take a while)}
         . {stata spmatrix matafromsp W id = W}
 
 {pstd}
@@ -832,6 +850,24 @@
 {pstd} Matrices:
 
 {p2col : {cmd:r(cuts)}}cut points used to categorize z
+    {p_end}
+
+
+{title:References}
+
+{phang}
+    Caceres Bravo, M. (2018). GTOOLS: Stata module to provide a fast
+    implementation of common group commands. Available from
+    {browse "http://ideas.repec.org/c/boc/bocode/s458514.html"} (also see
+    {browse "http://github.com/mcaceresb/stata-gtools"}).
+    {p_end}
+{phang}
+    Jann, B. (2018). {browse "https://www.stata-journal.com/article.html?article=gr0075":Color palettes for Stata graphics}. The Stata Journal
+    18(4): 765-785.
+    {p_end}
+{phang}
+    Jann, B. (2019). ColrSpace: Mata class for color management. Available from
+    {browse "http://ideas.repec.org/c/boc/bocode/s458597.html"}.
     {p_end}
 
 
