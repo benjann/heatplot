@@ -1,4 +1,4 @@
-*! version 1.0.3  31may2019  Ben Jann
+*! version 1.0.4  20jun2019  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -54,7 +54,9 @@ program heatplot, rclass
         local syntax 1
         syntax varlist(min=2 max=3 fv) [if] [in] [aw fw iw pw] [, ///
             `zopts' Statistic(name) fast SIZEProp SIZE2(str asis) RECenter ///
-            `yxopts' FILLin(numlist max=2 missingok) noLabel `gopts' ]
+            `yxopts' FILLin(numlist max=2 missingok) noLabel ///
+            idgenerate(str) /// undocumented
+            `gopts' ]
     }
     // - handle hexagon option (must do this first)
     if "`hexagon2'"!="" local hexagon hexagon
@@ -268,6 +270,10 @@ program heatplot, rclass
     
     // prepare data
     // - preserve
+    if `"`idgenerate'"'!="" { // undocumented
+        tempvar ID
+        gen double `ID' = _n
+    }
     preserve
     qui count
     local N0 = r(N)
@@ -321,7 +327,7 @@ program heatplot, rclass
         local N = r(N)
     }
     // - drop all irrelevant variables
-    keep `y0' `x0' `z0' `z2' `w' `by'
+    keep `y0' `x0' `z0' `z2' `w' `by' `ID'
 
     // collect titles for axes and legend
     if `syntax'==1 {
@@ -352,6 +358,10 @@ program heatplot, rclass
     }
 
     // make bins of x and y
+    if `"`idgenerate'"'!="" {   // undocumented
+        gettoken IDY IDX : idgenerate
+        gettoken IDX     : IDX
+    }
     tempname x y
     if inlist(`syntax',1,2) {
         foreach v in x y {
@@ -386,6 +396,22 @@ program heatplot, rclass
         _hexbin `x' `x_LB' `x_UB' `x_WD' `x_MIN' `x_MAX' "`xtight'" "`xclip'" ///
                 `y' `y_LB' `y_UB' `y_WD' `y_MIN' `y_MAX' "`ytight'" "`yclip'" ///
                 `hexorder'
+    }
+    if `"`idgenerate'"'!="" {   // undocumented
+        gettoken IDY IDX : idgenerate
+        gettoken IDX     : IDX
+        sort `y'
+        qui gen `IDY' = sum(`y'!=`y'[_n-1]) if `y'<.
+        sort `x'
+        qui gen `IDX' = sum(`x'!=`x'[_n-1]) if `x'<.
+        sort `ID'
+        tempfile idgentmp
+        qui save `idgentmp'
+        restore
+        capt drop `IDY'
+        capt drop `IDX'
+        qui merge 1:1 `ID' using `idgentmp', nogenerate
+        preserve
     }
 
     // aggregate outcome and handle transformation and size variable
@@ -1207,6 +1233,7 @@ program _makebin_continuous
     if `LB'>=. scalar `LB' = `MIN'
     if `UB'>=. scalar `UB' = `MAX'
     // determine step width
+    local UBtight = 0
     if `WD'>=. {
         if  `K'>=. {
             scalar `K' = max(1, trunc(min(sqrt(`N'), 10*ln(`N')/ln(10))))
@@ -1226,6 +1253,7 @@ program _makebin_continuous
         else if "`tight'"=="ltight" scalar `WD' = (`UB' - `LB') / (`K'-.5)
         else if "`tight'"=="rtight" scalar `WD' = (`UB' - `LB') / (`K'-.5)
         else                        scalar `WD' = (`UB' - `LB') / (`K'-1)
+        if inlist("`tight'", "tight", "rtight") & `UB'>`LB' local UBtight = 1
     }
     else {
         local lb st_numscalar("`LB'")
@@ -1235,32 +1263,43 @@ program _makebin_continuous
         else if "`tight'"=="ltight" mata: countbins(`lb'+`wd'/2, `ub', `wd', `wd'/2, 0)
         else if "`tight'"=="rtight" mata: countbins(`lb', `ub', `wd', `wd'/2, 1)
         else                        mata: countbins(`lb', `ub', `wd', `wd'/2, 0)
+        if inlist("`tight'", "tight", "rtight") {
+            if "`tight'"=="tight" local UBtight = (abs((`LB' + `K'*`WD') - `UB') / (`WD'+1)) < 1e-12
+            else                  local UBtight = (abs((`LB' + (`K'-.5)*`WD') - `UB') / (`WD'+1)) < 1e-12
+        }
     }
     // compute bin midpoints
     qui gen double `v' = floor((`x' - `LB') / `WD' * 2)
     if inlist("`tight'", "tight", "ltight") {
-        if "`tight'"=="tight" ///
-            qui replace `v' = floor((`v' - (mod(`v', 2)==0 &`x'>=`UB'))/2) * 2 + 1
+        if "`tight'"=="tight" & `UBtight' ///
+            qui replace `v' = floor((`v' - (mod(`v', 2)==0 & `x'==`UB'))/2) * 2 + 1
         else qui replace `v' = floor(`v'/2) * 2 + 1
     }
     else {
-        if "`tight'"=="rtight" ///
-             qui replace `v' = floor((`v'+1 - (mod(`v'+1, 2)==0 & `x'>=`UB'))/2) * 2
+        if "`tight'"=="rtight" & `UBtight' ///
+             qui replace `v' = floor((`v'+1 - (mod(`v'+1, 2)==0 & `x'==`UB'))/2) * 2
         else qui replace `v' = floor((`v'+1)/2) * 2
     }
     qui replace `v' = `LB' + `v'/2 * `WD'
     // remove bins that are out of range
-    if `LB'>`MIN' qui replace `v' = . if (`v'+ `WD'/2) <= `LB'
+    if `LB'>`MIN' qui replace `v' = . if `v' < `LB'
     if `UB'<`MAX' {
         if inlist("`tight'", "tight", "rtight") ///
             qui replace `v' = . if `v' >= (`UB' + `WD'/2)
         else ///
             qui replace `v' = . if `v' > (`UB' + `WD'/2)
     }
-    // clip: omit data that is out or range
+    // clip: omit data that is out of range
     if "`clip'"!="" {
         if "`clip'"!="rclip" & `LB'>`MIN' qui replace `v' = . if `x' < `LB'
         if "`clip'"!="lclip" & `UB'<`MAX' qui replace `v' = . if `x' > `UB'
+    }
+    // note on omitted data
+    if `LB'>`MIN' | `UB'<`MAX' {
+        qui count if `v'>=.
+        if r(N) {
+            di as txt "(`r(N)' observations outside range of `xy'bins)"
+        }
     }
 end
 
@@ -1330,24 +1369,23 @@ program _hexbin
     tempvar y1 y2
     qui gen double `y1' = floor((`y' - `y_LB') / `y_WD' * 3)
     if inlist("`ytight'", "tight", "ltight") {
-        if "`ytight'"=="tight" {
-            qui gen double `y2' = floor((`y1'-2 - (mod(`y1'-2, 6)==0 & `y'>=`y_UB'))/6) * 6 + 4
-            qui replace    `y1' = floor((`y1'+1 - (mod(`y1'+1, 6)==0 & `y'>=`y_UB'))/6) * 6 + 1
-        }
-        else {
-            qui gen double `y2' = floor((`y1'-2)/6) * 6 + 4
-            qui replace    `y1' = floor((`y1'+1)/6) * 6 + 1
-        }
+        qui gen double `y2' = floor((`y1'-2)/6) * 6 + 4
+        qui replace    `y1' = floor((`y1'+1)/6) * 6 + 1
     }
     else {
-        if "`ytight'"=="rtight" {
-            qui gen double `y2' = floor((`y1'-1 - (mod(`y1'-1, 6)==0 & `y'>=`y_UB'))/6) * 6 + 3
-            qui replace    `y1' = floor((`y1'+2 - (mod(`y1'+2, 6)==0 & `y'>=`y_UB'))/6) * 6
-        }
-        else {
-            qui gen double `y2' = floor((`y1'-1)/6) * 6 + 3
-            qui replace    `y1' = floor((`y1'+2)/6) * 6
-        }
+        qui gen double `y2' = floor((`y1'-1)/6) * 6 + 3
+        qui replace    `y1' = floor((`y1'+2)/6) * 6
+    }
+    if inlist("`ytight'", "tight", "ltight") {
+        // make sure that obs on lower edge are not put in bin below
+        qui replace `y2' = `y2' + 6 if `y2'<0 & `y'==`y_LB'
+    }
+    if inlist("`ytight'", "tight", "rtight") {
+        // make sure that obs on upper edge are not put in bin above
+        qui replace `y1' = `y1' - 6 if `y'==`y_UB' & ///
+            (abs((`y_LB' + ((`y1'-2)/3) * `y_WD') - `y_UB') / (`y_WD'+1)) < 1e-12
+        qui replace `y2' = `y2' - 6 if `y'==`y_UB' & ///
+            (abs((`y_LB' + ((`y2'-2)/3) * `y_WD') - `y_UB') / (`y_WD'+1)) < 1e-12
     }
     qui replace `y1' = `y_LB' + `y1'/3 * `y_WD'
     qui replace `y2' = `y_LB' + `y2'/3 * `y_WD'
@@ -1355,24 +1393,19 @@ program _hexbin
     tempvar x1 x2
     qui gen double `x1' = floor((`x' - `x_LB') / `x_WD' * 4)
     if inlist("`xtight'", "tight", "ltight") {
-        if inlist("`xtight'", "tight", "rtight") {
-            qui gen double `x2' = floor((`x1'+2 - (mod(`x1'+2, 4)==0 & `x'>=`x_UB'))/4) * 4
-            qui replace    `x1' = floor((`x1'   - (mod(`x1'  , 4)==0 & `x'>=`x_UB'))/4) * 4 + 2
-        }
-        else {
-            qui gen double `x2' = floor((`x1'+2)/4) * 4
-            qui replace    `x1' = floor(`x1'/4) * 4 + 2
-        }
+        qui gen double `x2' = floor((`x1'+2)/4) * 4
+        qui replace    `x1' = floor(`x1'/4) * 4 + 2
     }
     else {
-        if "`xtight'"=="rtight" {
-            qui gen double `x2' = floor((`x1'+3 - (mod(`x1'+3, 4)==0 & `x'>=`x_UB'))/4) * 4 - 1
-            qui replace    `x1' = floor((`x1'+1 - (mod(`x1'+1, 4)==0 & `x'>=`x_UB'))/4) * 4 + 1
-        }
-        else {
-            qui gen double `x2' = floor((`x1'+3)/4) * 4 - 1
-            qui replace    `x1' = floor((`x1'+1)/4) * 4 + 1
-        }
+        qui gen double `x2' = floor((`x1'+3)/4) * 4 - 1
+        qui replace    `x1' = floor((`x1'+1)/4) * 4 + 1
+    }
+    if inlist("`xtight'", "tight", "rtight") {
+        // make sure that obs on right edge are not put in bin on the right
+        qui replace `x1' = `x1' - 4 if `x'==`x_UB' & ///
+            (abs((`x_LB' + ((`x1'-2)/4) * `x_WD') - `x_UB') / (`x_WD'+1)) < 1e-12
+        qui replace `x2' = `x2' - 4 if `x'==`x_UB' & ///
+            (abs((`x_LB' + ((`x2'-2)/4) * `x_WD') - `x_UB') / (`x_WD'+1)) < 1e-12
     }
     if `order' {
         local tmp `x1'
@@ -1388,14 +1421,24 @@ program _hexbin
     qui replace `x1' = `x2' if `d'==0
     qui replace `y1' = `y2' if `d'==0
     // remove bins that are out of range
-    if `y_LB'>`y_MIN' qui replace `y1' = . if (`y1'+ 2*`y_WD'/3) <= `y_LB'
+    if `y_LB'>`y_MIN' {
+        if inlist("`ytight'", "tight", "rtight") ///
+            qui replace `y1' = . if `y1' < `y_LB'
+        else ///
+            qui replace `y1' = . if (`y1'+ 2*`y_WD'/3) <= `y_LB'
+    }
     if `y_UB'<`y_MAX' {
         if inlist("`ytight'", "tight", "rtight") ///
             qui replace `y1' = . if `y1' >= (`y_UB' + 2*`y_WD'/3)
         else ///
             qui replace `y1' = . if `y1' > (`y_UB' + 2*`y_WD'/3)
     }
-    if `x_LB'>`x_MIN' qui replace `x1' = . if (`x1'+ `x_WD'/2) <= `x_LB'
+    if `x_LB'>`x_MIN' {
+        if inlist("`xtight'", "tight", "ltight") /// 
+            qui replace `x1' = . if `x1' < `x_LB'
+        else ///
+            qui replace `x1' = . if (`x1'+ `x_WD'/2) <= `x_LB'
+    }
     if `x_UB'<`x_MAX' {
         if inlist("`xtight'", "tight", "rtight") ///
             qui replace `x1' = . if `x1' >= (`x_UB' + `x_WD'/2)
@@ -1414,6 +1457,19 @@ program _hexbin
     drop `x' `y'
     rename `x1' `x'
     rename `y1' `y'
+    // note on omitted data
+    if `x_LB'>`x_MIN' | `x_UB'<`x_MAX' {
+        qui count if `x'>=.
+        if r(N) {
+            di as txt "(`r(N)' observations outside range of xbins)"
+        }
+    }
+    if `y_LB'>`y_MIN' | `y_UB'<`y_MAX' {
+        qui count if `y'>=.
+        if r(N) {
+            di as txt "(`r(N)' observations outside range of ybins)"
+        }
+    }
 end
 
 program _fillin

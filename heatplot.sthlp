@@ -1,5 +1,5 @@
 {smcl}
-{* 20may2019}{...}
+{* 20jun2019}{...}
 {hi:help heatplot}
 {hline}
 
@@ -501,14 +501,16 @@
     account when computing relative frequencies. {it:suboptions} are:
 
 {phang2}
-    {cmd:tight} causes {it:lb} and {it:ub} to be interpreted as outer bounds of
-    the first and last bins (the last bin will be right-inclusive in this
-    case). By default {it:lb} and {it:ub} are taken as bin midpoints (and
-    all bins are right-open). Specify {cmd:tight} to make the intervals
-    tight. If {cmd:tight} is specified together with {cmd:hexagon}, the first and last bins
-    are made as tight as possible given the shape and arrangement of the hexagons;
-    all data falling into the hexagons will be taken into account even if lower
-    than {it:lb} or larger than {it:ub} (unless option {cmd:clip} is specified).
+    {cmd:tight} makes the bins tight. By default {it:lb} and {it:ub} are
+    interpreted as midpoints of the the first and last bins. Specify
+    {cmd:tight} to treat {it:lb} and {it:ub} as outer bounds of the the first
+    and last bins (in general, all bins are defined using right-open intervals; 
+    however, if {cmd:tight} is specified, observations equal to {it:ub} will
+    be included in the last bin). If {cmd:tight} is specified together with {cmd:hexagon},
+    the first and last bins are made as tight as possible given the shape and
+    arrangement of the hexagons; all data falling into the hexagons will be
+    taken into account even if lower than {it:lb} or larger than {it:ub}
+    (unless option {cmd:clip} is specified).
 
 {phang2}
     {cmd:ltight} makes the first bin tight, but leaves the last bin unchanged.
