@@ -1,4 +1,4 @@
-*! version 1.0.5  05sep2019  Ben Jann
+*! version 1.0.5  07sep2019  Ben Jann
 
 capt which colorpalette
 if _rc {
