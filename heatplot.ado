@@ -1,4 +1,4 @@
-*! version 1.0.4  20jun2019  Ben Jann
+*! version 1.0.5  05sep2019  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -20,10 +20,10 @@ program heatplot, rclass
     // syntax
     // - list of common options
     local zopts LEVels(int 0) CUTs(str) Colors(str asis) ///
-        size srange(numlist max=2 >=0) ///
-        TRANSform(str asis) MISsing MISsing2(str) VALues VALues2(str) ///
-        HEXagon HEXagon2(str asis) scatter SCATTER2(str asis) ///
-        KEYlabels(str asis) p(str) BACKFill BACKFill2(str)
+        size srange(numlist max=2 >=0) TRANSform(str asis) ///
+        MISsing MISsing2(str) VALues VALues2(str) HEXagon HEXagon2(str asis) ///
+        scatter SCATTER2(str asis) KEYlabels(str asis) p(str) ///
+        RAMP RAMP2(str asis) BACKFill BACKFill2(str)
     local yxopts ///
          bins(str)  BWidth(str)  DISCRete  DISCRete2(numlist max=1) ///
         xbins(str) XBWidth(str) XDISCRete XDISCRete2(numlist max=1) ///
@@ -47,8 +47,10 @@ program heatplot, rclass
     }
     else if `: list sizeof matrix'==1 {            // syntax 3: heatplot matrix
         local syntax 3
-        syntax [anything(name=matrix)] [, `zopts' `matopts' Label `gopts' ]
+        syntax [anything(name=matrix)] [, `zopts' `matopts'  ///
+            EQuations EQuations2(str) Label `gopts' ]
         confirm matrix `matrix'
+        if `"`equations2'"'!="" local equations equations
     }
     else {                                        // syntax 1: heatplot [z] y x
         local syntax 1
@@ -59,7 +61,7 @@ program heatplot, rclass
             `gopts' ]
     }
     // - handle hexagon option (must do this first)
-    if "`hexagon2'"!="" local hexagon hexagon
+    if `"`hexagon2'"'!="" local hexagon hexagon
     if "`hexagon'"!="" {
         _parse_hex, `hexagon2' // returns hexdir hexorder hexodd
     }
@@ -121,7 +123,18 @@ program heatplot, rclass
     if "`missing'"!=""    _parse_missing, `missing2'
     if `"`values2'"'!=""  local values values
     if "`values'"!=""     _parse_values, `values2'
-    _parse_keylab `keylabels'
+    if `"`ramp2'"'!=""    local ramp ramp
+    if "`ramp'"!="" {
+        if `"`keylabels'"'!="" {
+            di as err "ramp() and keylabels() not both allowed"
+            exit 198
+        }
+        tempvar ramp_ID ramp_Y ramp_X
+        _parse_ramp `ramp_Y' `ramp_X', `ramp2'
+    }
+    else {
+        _parse_keylab `keylabels'
+    }
     if `"`backfill2'"'!="" local backfill backfill
     if "`backfill'"!=""    _parse_backfill, `backfill2'
     // - handle bins()
@@ -234,8 +247,8 @@ program heatplot, rclass
         local by "`s(varlist)'"
         if "`by'"!="" {
             local bymissing "`s(missing)'"
-            _parse_bylegend, `s(by_legend)' // returns bylegend
-            local byopt by(`by', `bymissing' `bylegend' `s(byopts)')
+            _parse_bylegend, `s(by_legend)' `ramp' // returns bylegend
+            local byopt by(`by', `byopt' `bymissing' `bylegend' `s(byopts)')
         }
     }
     else {
@@ -246,6 +259,9 @@ program heatplot, rclass
     _check_gropts, `graphopts'
     local options `options' `graphopts'
     local AXIS `yaxis' `xaxis' // need to pass through to each plot
+    if "`ramp'"!="" {
+        _parse_ramp_gropts, `options'
+    }
     // generate option
     _parse_generate `generate2'
     if "`generate2'"!="" local generate generate
@@ -353,7 +369,7 @@ program heatplot, rclass
         else if `syntax'==3 local ztitle "`matrix'"
         else                local ztitle "`z0'"
     }
-    if `"`transform'"'!="" & `"`keylab_trans'"'=="" {
+    if `"`transform'"'!="" & `"`retransform'"'=="" {
         local ztitle: subinstr local transform "@" `"`ztitle'"', all
     }
 
@@ -413,7 +429,7 @@ program heatplot, rclass
         qui merge 1:1 `ID' using `idgentmp', nogenerate
         preserve
     }
-
+    
     // aggregate outcome and handle transformation and size variable
     if "`sizeprop'"!="" {
         tempvar z2
@@ -572,7 +588,7 @@ program heatplot, rclass
             }
         }
     }
-    if "`missing'"!="" {
+    if "`missing'"!="" & "`ramp'"=="" {
         local legend - " " 1 `missing_label'
     }
 
@@ -588,7 +604,7 @@ program heatplot, rclass
     }
 
     // prepare legend
-    if "`keylabels'"=="" {
+    if "`keylabels'"=="" & "`ramp'"=="" {
         if `levels' <= 24 local keylabels "all"
         else {
             local keylabels = ceil(`levels'/24)
@@ -607,6 +623,7 @@ program heatplot, rclass
         if `i'>1 {
             qui replace `Z' = `Z' + (`z'>=`CUTS'[1,`i']) if `z'<.
         }
+        if "`ramp'"!="" continue
         // key labels
         local ll `ul'
         local ul = `CUTS'[1,`i'+1]
@@ -617,17 +634,17 @@ program heatplot, rclass
         if "`keylab'"!="" {
             if "`keylab_interval'`keylab_range'"=="" {
                 local keylab = (`ll'+`ul')/2
-                if `"`keylab_trans'"'!="" {
-                    local keylab: subinstr local keylab_trans "@" "`keylab'", all
+                if `"`retransform'"'!="" {
+                    local keylab: subinstr local retransform "@" "`keylab'", all
                 }
                 local keylab `: di `keylab_format' `keylab''
             }
             else {
                 local ll0 `ll'
                 local ul0 `ul'
-                if `"`keylab_trans'"'!="" {
-                    local ll0: subinstr local keylab_trans "@" "`ll0'", all
-                    local ul0: subinstr local keylab_trans "@" "`ul0'", all
+                if `"`retransform'"'!="" {
+                    local ll0: subinstr local retransform "@" "`ll0'", all
+                    local ul0: subinstr local retransform "@" "`ul0'", all
                 }
                 local ll0 `:di `keylab_format' `ll0''
                 if "`keylab_interval'"!="" {
@@ -796,6 +813,11 @@ program heatplot, rclass
                 */ `p' `p`i'')
         }
     }
+    if "`equations'"!="" {
+        local plots `plots' (scatteri `eqcoords', `AXIS' recast(area)/*
+            */ nodropbase cmissing(n) fcolor(none) lstyle(xyline)/*
+            */ lalign(center) `equations2')
+    }
     if "`values'"!="" {
         local plots `plots' (scatter `y' `x' if `z'<., `AXIS' ms(i)/*
             */ mlabel(`z') mlabpos(0) mlabcolor(black) `values2')
@@ -803,12 +825,13 @@ program heatplot, rclass
     if `"`addplot'"'!="" {
         local plots `plots' || `addplot' ||
     }
-    if "`by'"=="" local legendopt order(`legend') position(3)
-    else          local legendopt order(`legend')
-    local legendopt legend(all subtitle(`ztitle', size(medsmall)) ///
-         `legendopt' cols(1) rowgap(0) size(vsmall) keygap(tiny) ///
-         symxsize(medlarge) `keylab_opts')
-    else local legend legend(off)
+    if "`ramp'"=="" {
+        if "`by'"=="" local legendopt order(`legend') position(3)
+        else          local legendopt order(`legend')
+        local legendopt legend(all subtitle(`ztitle', size(medsmall)) ///
+             `legendopt' cols(1) rowgap(0) size(vsmall) keygap(tiny) ///
+             symxsize(medlarge) `keylab_opts')
+    }
     if `syntax'==3 {
         local yscale yscale(reverse)
         local yhor ylabel(, angle(0))
@@ -829,11 +852,64 @@ program heatplot, rclass
         }
     }
     if "`graph'"=="" {
+        if "`ramp'"!="" {
+            tempname maingraph legendgraph
+            local options `ramp_mopts' name(`maingraph') `options'
+        }
+        else {
+            local options `legendopt' `options'
+        }
         graph twoway `plots', ytitle(`"`ytitle'"') xtitle(`"`xtitle'"') ///
             `yscale' `yhor' `ylabel' `xscale' `xlabel' `backfill' ///
-            `legendopt' `byopt' `options'
+            `byopt' `options'
+        if "`ramp'"!="" {
+            // generate color ramp
+            qui gen long `ramp_ID' = .
+            qui gen double `ramp_Y' = .
+            qui gen double `ramp_X' = .
+            mata: generatescalecoords(st_matrix("`CUTS'"), ///
+                ("`ramp_ID'", "`ramp_Y'", "`ramp_X'"))
+            if `"`retransform'"'!="" {
+                local tmptransform: subinstr local retransform "@" "`ramp_Y'", all
+                qui replace `ramp_Y' = `tmptransform' if `ramp_Y'<.
+            }
+            local plots
+            local clist
+            forv i = 1/`levels' {
+                gettoken c clist : clist
+                if `"`c'"'=="" {    // recycle
+                    gettoken c clist : colors
+                }
+                local plots `plots' (area `ramp_YX' if `ramp_ID'==`i',/*
+                    */ nodropbase cmissing(n) color("`c'") finten(100) `p' `p`i'')
+            }
+            local ymin = `CUTS'[1,1]
+            local ymax = `CUTS'[1,`levels'+1]
+            if `"`retransform'"'!="" {
+                local tmptransform: subinstr local retransform "@" "`ymin'", all
+                local ymin = `tmptransform'
+                local tmptransform: subinstr local retransform "@" "`ymax'", all
+                local ymax = `tmptransform'
+            }
+            if `"`ramp_ylabel'"'=="" local ramp_ylabel `ymin' `ymax'
+            else {
+                local ramp_ylabel: subinstr local ramp_ylabel "@min" "`ymin'", all
+                local ramp_ylabel: subinstr local ramp_ylabel "@max" "`ymax'", all
+            }
+            graph twoway `plots', name(`legendgraph') `ramp_opts'
+            if "`ramp_N_preserve'"!="" {
+                // remove observation added by generatescalecoords()
+                qui keep in 1/`ramp_N_preserve'
+            }
+            // put graphs together
+            if "`ramp_pos'"=="right"     local grcombine `maingraph' `legendgraph', rows(1)
+            else if "`ramp_pos'"=="left" local grcombine `legendgraph' `maingraph', rows(1)
+            else if "`ramp_pos'"=="top"  local grcombine `legendgraph' `maingraph', cols(1)
+            else /*bottom*/              local grcombine `maingraph' `legendgraph', cols(1)
+            graph combine `grcombine' iscale(1) commonscheme `ramp_combopts' `ramp_gropts'
+        }
     }
-
+    
     // generate
     if "`generate'"!="" {
         if `"`addplot'"'!="" & "`addplotnopreserve'"=="" {
@@ -909,6 +985,7 @@ program heatplot, rclass
         return scalar `v'_wd  = ``v'_WD'
         return scalar `v'_k   = ``v'_K'
     }
+    return local eqcoords `"`eqcoords'"'
     return local keylabels `"`legend'"'
     return local colors `"`colors'"'
     return scalar levels = `levels'
@@ -995,7 +1072,12 @@ program _parse_hex
 end
 
 program _parse_bylegend
-    syntax [, legend(str asis) ]
+    syntax [, legend(str asis) ramp ]
+    if "`ramp'"!="" {
+        if `"`legend'"'=="" local legend legend(off)
+        c_local bylegend `legend'
+        exit
+    }
     local 0 `", `legend'"'
     syntax [, POSition(passthru) * ]
     if `"`position'"'=="" c_local bylegend legend(position(3) `options')
@@ -1165,11 +1247,95 @@ program _parse_keylab
     }
     else local format %7.0g
     c_local keylab_format `"`format'"'
-    c_local keylab_trans `"`transform'"'
     c_local keylab_interval `interval'
     c_local keylab_range `range'
     c_local keylab_area `area'
     c_local keylab_opts `"`options'"'
+    c_local retransform `"`transform'"'
+end
+
+program _parse_ramp
+    syntax anything [, Left Right Top Bottom ///
+        LABels(str asis) ///
+        Format(passthru) ///
+        Length(numlist max=1 >=0 <=100) ///
+        Space(numlist max=1 >=0 <=100) ///
+        TRANSform(str asis) ///
+        Combine(str asis) /// 
+        fysize(passthru) fxsize(passthru) * ]
+    gettoken y anything : anything
+    gettoken x          : anything 
+    local pos `left' `right' `top' `bottom'
+    if `:list sizeof pos'>1 {
+        di as err "ramp(): only one of left, right, top, and bottom allowed"
+        exit 198
+    }
+    if "`pos'"=="" local pos bottom
+    if "`pos'"=="right" {
+        local Y y
+        local X x
+        local alt "alt "
+        local angle "angle(0) "
+        local margin "l=0 t=0 b=0"
+        local tiopt "span position(11) margin(l=0 r=0 t=0 b=2)"
+        if "`length'"=="" local length 60
+        if "`space'"=="" local space  20
+    }
+    else if "`pos'"=="left" {
+        local Y y
+        local X x
+        local angle "angle(0) "
+        local margin "r=0 t=0 b=0"
+        local tiopt "span position(12) margin(l=0 r=0 t=0 b=2)"
+        if "`length'"=="" local length 60
+        if "`space'"=="" local space  20
+    }
+    else if "`pos'"=="top" {
+        local Y x
+        local X y
+        local margin "l=0 r=0 b=0"
+        local tiopt "position(9) margin(l=0 r=1 t=0 b=0)"
+        if "`length'"=="" local length 80
+        if "`space'"=="" local space 12
+    }
+    else {
+        local Y x
+        local X y
+        local margin "l=0 r=0 t=0"
+        local tiopt "position(9) margin(l=0 r=1 t=0 b=0)"
+        if "`length'"=="" local length 80
+        if "`space'"=="" local space 12
+    }
+    if "`f`Y'size'"=="" local f`Y'size `length'
+    if "`f`X'size'"=="" local f`X'size `space'
+    _parse comma lhs rhs : labels
+    if `"`rhs'"'!="" {
+        gettoken comma rhs : rhs, parse(",")
+        local rhs `" `rhs'"'
+    }
+    if `"`format'"'=="" local format format(%7.0g)
+    c_local ramp_YX ``Y'' ``X''
+    c_local ramp_pos `pos'
+    c_local ramp_ylabel `"`lhs'"'
+    c_local ramp_opts `X'scale(off) `X'label(, nogrid)/*
+        */ `Y'title("") `Y'scale(`alt'noextend)/*
+        */ `Y'label(\`ramp_ylabel', `format' `angle'nogrid`rhs')/*
+        */ subtitle(\`ztitle', size(medsmall) `tiopt')/*
+        */ legend(off) f`Y'size(`f`Y'size') f`X'size(`f`X'size')/*
+        */ plotregion(margin(zero) style(none)) graphr(margin(zero))/*
+        */ nodraw `options'
+    c_local ramp_mopts legend(off) nodraw graphregion(margin(`margin'))
+    c_local ramp_combopts `"`combine'"'
+    c_local retransform `"`transform'"'
+end
+
+program _parse_ramp_gropts
+    syntax [, ///
+        TItle(passthru) SUBtitle(passthru) note(passthru) CAPtion(passthru) ///
+        YSIZe(passthru) XSIZe(passthru) nodraw scheme(passthru) ///
+        name(passthru) saving(passthru) * ]
+    c_local ramp_gropts `title' `subtitle' `note' `caption' `ysize' `xsize' `draw' `scheme' `name' `saving'
+    c_local options `options'
 end
 
 program _parse_generate
@@ -1244,11 +1410,11 @@ program _makebin_continuous
         }
         if `K'<2 {
             if `UB'>`LB' & "`tight'"=="" {
-                scalar K 2 // set minimum
+                scalar `K' = 2 // set minimum
                 di as txt "(number of `xy'bins reset to 2)"
             }
         }
-        if `UB'<=`LB'               scalar `WD' 1
+        if `UB'<=`LB'               scalar `WD' = 1
         else if "`tight'"=="tight"  scalar `WD' = (`UB' - `LB') /  `K'
         else if "`tight'"=="ltight" scalar `WD' = (`UB' - `LB') / (`K'-.5)
         else if "`tight'"=="rtight" scalar `WD' = (`UB' - `LB') / (`K'-.5)
@@ -1324,11 +1490,11 @@ program _hexbin_prepare
         }
         if `K'<2 {
             if `UB'>`LB' & "`tight'"=="" {
-                scalar K 2 // set minimum
+                scalar `K' = 2 // set minimum
                 di as txt "(number of `xy'bins reset to 2)"
             }
         }
-        if `UB'<=`LB'                   scalar `WD' 1
+        if `UB'<=`LB'                   scalar `WD' = 1
         else if "`xy'"=="y" {
             if "`tight'"=="tight"       scalar `WD' = (`UB' - `LB') / (`K'-1/3)
             else if "`tight'"=="ltight" scalar `WD' = (`UB' - `LB') / (`K'-2/3)
@@ -1586,8 +1752,16 @@ void writematrixtodata()
     _writematamatrixtodata(M)
     
     // generate labels
-    writematrixlbls(st_matrixrowstripe(st_local("matrix")), "y")
-    writematrixlbls(st_matrixcolstripe(st_local("matrix")), "x")
+    if (st_local("equations")=="") {
+        // standard labels
+        writematrixlbls(st_matrixrowstripe(st_local("matrix")), "y")
+        writematrixlbls(st_matrixcolstripe(st_local("matrix")), "x")
+    }
+    else {
+        // label equations and compile outline coordinates
+        writematrixeqs(st_matrixrowstripe(st_local("matrix")), 
+                       st_matrixcolstripe(st_local("matrix")))
+    }
 }
 
 void _writematamatrixtodata(real matrix M)
@@ -1686,6 +1860,91 @@ void writematrixlbls(string matrix stripe, string scalar x)
                "`" + `"""' + lbl + `"""' + "'"
     }
     st_local(x+"label", x+"label(" + lbls + ")")
+}
+
+void writematrixeqs(string matrix R, string matrix C)
+{
+    string colvector req, ceq
+    real matrix      rlu, clu
+    pragma unset req
+    pragma unset ceq
+    pragma unset rlu
+    pragma unset clu
+
+    geteqinfo(req, rlu, R)
+    writeeqlbls(req, rlu, "y")
+    geteqinfo(ceq, clu, C)
+    writeeqlbls(ceq, clu, "x")
+    writeeqcoords(req, rlu, ceq, clu)
+}
+
+void geteqinfo(string colvector eq, real matrix lu, string matrix S)
+{
+    real scalar   i, j, r
+    string scalar s
+    
+    r = rows(S)
+    eq = J(r, 1, "")
+    lu = J(r, 2, .)
+    j = 0
+    for (i=1; i<=r; i++) {
+        j++
+        s = S[i,1]; eq[j] = s; lu[j,1] = i
+        for (; i<=r; i++) {
+            if (i<r) {
+                if (S[i+1,1]==s) continue
+            }
+            lu[j,2] = i
+            break
+        }
+    }
+    eq = eq[|1 \ j|]
+    lu = lu[|1,1 \ j,2|]
+}
+
+void writeeqlbls(string colvector eq, real matrix lu, string scalar x)
+{
+    real scalar   i, r, label
+    string scalar lbl, lbls, ticks
+    pragma unset  lbls
+    
+    label = st_local("label")!=""
+    r = rows(eq)
+    ticks = ".5"
+    for (i=1; i<=r; i++) {
+        lbl = eq[i]
+        if (label) {
+            if (_st_varindex(lbl)<.) {
+                lbl = st_varlabel(lbl)
+                if (lbl=="") lbl = eq[i]
+            }
+        }
+        lbls = lbls + (i>1 ? " " : "") + strofreal((lu[i,2]+lu[i,1])/2) + 
+               " " + "`" + `"""' + lbl + `"""' + "'"
+        ticks = ticks + " " + strofreal(lu[i,2]+.5)
+    }
+    st_local(x+"label", x+"label(" + lbls + ", notick) " + 
+                        x+"tick(" + ticks + ")")
+}
+
+void writeeqcoords(string colvector req, real matrix rlu, 
+    string colvector ceq, real matrix clu)
+{
+    real scalar   i, n
+    string scalar coord, rlo, rup, clo, cup
+    pragma unset  coord
+    
+    n = min((rows(req), rows(ceq)))
+    for (i=1; i<=n; i++) {
+        rlo = strofreal(rlu[i,1]-.5); rup = strofreal(rlu[i,2]+.5)
+        clo = strofreal(clu[i,1]-.5); cup = strofreal(clu[i,2]+.5)
+        coord = coord + (i>1 ? " " : "") + rlo + " " + clo + 
+                                     " " + rlo + " " + cup +
+                                     " " + rup + " " + cup +
+                                     " " + rup + " " + clo +
+                                     " " + "." + " " + "."
+    }
+    st_local("eqcoords", coord)
 }
 
 void countbins(
@@ -1961,6 +2220,33 @@ void swapxy()
     tmp = st_local("X")
     st_local("X", st_local("Y"))
     st_local("Y", tmp)
+}
+
+void generatescalecoords(real rowvector cuts, string rowvector vnames)
+{
+    real scalar i, j, n, lo, up
+    real matrix coord // ID Y X
+
+    n = cols(cuts)
+    coord = J(5*(n-1), 3, .)
+    j = 0
+    up = cuts[1]
+
+    for (i=1;i<n;i++) {
+        lo = up
+        up = cuts[i+1]
+        coord[++j,] = (i, lo, 0)
+        coord[++j,] = (i, lo, 1)
+        coord[++j,] = (i, up, 1)
+        coord[++j,] = (i, up, 0)
+        coord[++j,] = (i,  ., .)
+    }
+    n = rows(coord)
+    if (n>st_nobs()) {
+        st_local("ramp_N_preserve", strofreal(n-st_nobs()))
+        st_addobs(n-st_nobs())
+    }
+    st_store((1,n), vnames, coord)
 }
 
 end

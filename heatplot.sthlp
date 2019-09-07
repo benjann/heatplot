@@ -1,5 +1,5 @@
 {smcl}
-{* 20jun2019}{...}
+{* 05sep2019}{...}
 {hi:help heatplot}
 {hline}
 
@@ -87,6 +87,8 @@
     {p_end}
 {synopt :{helpb heatplot##keylabels:{ul:keyl}abels({it:spec})}}determine how color fields are labelled in the legend
     {p_end}
+{synopt :{helpb heatplot##ramp:ramp{sf:[}({it:options}){sf:]}}}display a color ramp instead of the legend
+    {p_end}
 {synopt :{helpb heatplot##p:p{sf:[}{it:#}{sf:]}({it:area_options})}}detailed rendering of color fields
     {p_end}
 {synoptline}
@@ -120,6 +122,8 @@
 {synopt :{helpb heatplot##upper:upper}}only display upper triangle
     {p_end}
 {synopt :{helpb heatplot##nodiagonal:{ul:nodiag}onal}}omit diagonal
+    {p_end}
+{synopt :{helpb heatplot##equations:{ul:eq}uations{sf:[}({it:line_opts}){sf:]}}}(syntax 3 only) label and outline equations
     {p_end}
 {synoptline}
 
@@ -409,7 +413,7 @@
     and suboptions are:
 
 {phang2}
-    {opth f:ormat(%fmt)} sets the display format.
+    {opth f:ormat(%fmt)} sets the display format. The default is {cmd:%7.0g}.
 
 {phang2}
     {opt trans:form(@exp)} causes the values to be transformed before being
@@ -442,6 +446,68 @@
 {phang2}
     {it:legend_options} are further options affecting the rendering of the
     legend; see {it:contents} and {it:location} in help {it:{help legend_options}}.
+
+{marker ramp}{...}
+{phang}
+    {cmd:ramp}[{cmd:(}{it:options}{cmd:)}] renders the legend as a color ramp 
+    instead of using {helpb graph}'s legend 
+    option. Internally, if {cmd:ramp} is specified, two graphs are created, one 
+    for the main plot and one for the color ramp; these plots are then combined into a single graph
+    using {helpb graph combine}. {it:options} are:
+
+{phang2}
+    {opt l:eft}, {opt r:ight}, {opt t:op}, or {opt b:ottom} specify the location 
+    of the ramp on the final graph. The location also affects the orientation of 
+    the ramp. In case of {cmd:top} or {cmd:bottom}, the ramp 
+    will be oriented horizontally; in case of {cmd:left} or {cmd:right}, the ramp
+    will be oriented vertically. The default is {cmd:bottom}.
+
+{phang2}
+    {opt lab:els(rule_or_values)} specifies how the axis of the ramp 
+    should be labeled and ticked, where {it:rule_or_values} is as described in 
+    {it:{help axis_label_options}}. You may specify {cmd:@min} 
+    and {cmd:@max} to refer to the lower bound of the first interval and the 
+    upper bound of the last interval. For example, you could type 
+    {cmd:labels(@min .5 @max)} to place a label at the minimum, at 0.5, and at the maximum. Various
+    suboptions are available to control the rendering of the labels and ticks; see 
+    {it:{help axis_label_options}}.
+
+{phang2}
+    {opth f:ormat(%fmt)} sets the display format for the labels. The default 
+    is {cmd:%7.0g}.
+
+{phang2}
+    {opt l:ength(#)} sets the length of the ramp as a percentage of the 
+    available space (the graph's width or height, depending on the orientation 
+    of the ramp). In horizontal orientation the default is {cmd:length(80)}; in 
+    vertical orientation the default is {cmd:length(60)}.
+
+{phang2}
+    {opt s:pace(#)} specifies the space to be consumed by the plot containing 
+    the ramp, as a percentage of the overall size of the graph. In horizontal 
+    orientation the default is {cmd:length(12)}; in 
+    vertical orientation the default is {cmd:length(20)}.
+
+{phang2}
+    {opt trans:form(@exp)} causes the ramp to be displayed on a transformed 
+    scale. {it:@exp} is an expression in which {cmd:@} acts as
+    a placeholder for the values to be transformed. Typically, {it:@exp} will be
+    the inverse of the main {helpb heatplot##transform:transform()}
+    option. For example, {cmd:transform(ln(@))} would go along with
+    {cmd:ramp(transform(exp(@))}.
+
+{phang2}
+    {opt c:ombine(combine_options)} are option to be passed through to 
+    {helpb graph combine}, such as {it:{help region_options}}. Note that the 
+    following options will be collected from the main options
+    and passed through to {helpb graph combine} automatically: {cmd:title()}, 
+    {cmd:subtitle()}, {cmd:note()}, {cmd:caption()}, {cmd:ysize()}, 
+    {cmd:xsize()}, {cmd:nodraw}, {cmd:scheme()}, {cmd:name()}, and 
+    {cmd:saving()}.
+
+{phang2}
+    {it:{help twoway_options}} are general options to be applied to the plot 
+    containing the color ramp.
 
 {marker p}{...}
 {phang}
@@ -586,6 +652,16 @@
 {phang}
     {opt nodiagonal} omits the diagonal of the matrix.
 
+{marker equations}{...}
+{phang}
+    {opt equations}[{cmd:(}{it:{help line_options}}{cmd:)}] uses the equation 
+    names of the matrix as axis labels, places ticks between equations, and 
+    draws outlines around diagonal equation areas. This
+    can be useful, for example, if the matrix contains pairwise distances and the
+    equations identify clusters. Use {it:{help line_options}} to affect the 
+    rendering of the outline. {opt equations()} is only allowed in
+    syntax 3.
+
 {dlgtab:graph_options}
 
 {marker nograph}{...}
@@ -600,7 +676,7 @@
     labels, if variable and value labels exist. Specify {cmd:nolabel} to
     use variable names and values instead. In syntax 3 (plot from Stata matrix) the default is to use
     row and column names as tick labels. Specify {cmd:label} to instruct {cmd:heatplot} to
-    look for corresponding variables in the dataset and use their labels. In syntax 3, {cmd:label}
+    look for corresponding variables in the dataset and use their labels. In syntax 2, {cmd:label}
     has no effect.
 
 {marker addplot}{...}
@@ -699,6 +775,37 @@
 {p 8 12 2}
         . {stata heatplot weight height, ylabel(25(25)175, nogrid) backfill colors(magma, reverse) hexagon sizeprop recenter statistic(count) cuts(1(5)96 100) keylabels(, range(1))}
 
+{dlgtab:Display color ramp instead of legend}
+
+{pstd} 
+    By default, a legend produced by {helpb graph}'s legend option is
+    displayed. Alternatively, use the {helpb heatplot##ramp:ramp} option to render the legend as
+    a color ramp in a separate coordinate system (internally, 
+    {helpb graph combine} will be employed to combine the main plot and the 
+    ramp in a single graph):
+
+        . {stata webuse nhanes2, clear}
+        . {stata heatplot weight height, ramp}
+
+{pstd} 
+    Place ramp on right, adjust the space used for the 
+    ramp, specify custom labels:
+
+{p 8 12 2}
+        . {stata heatplot weight height, ramp(right space(12) label(0(.1).9))}
+
+{pstd} 
+    Use text labels and remove title:
+
+{p 8 12 2}
+        . {stata heatplot weight height, ramp(right label(@min "low" @max "high") subtitle(""))}
+
+{pstd} 
+    Assign colors based on a transformed scale and retransform the ramp:
+
+{p 8 12 2}
+        . {stata heatplot weight height, stat(count) transform(ln(@)) ramp(transform(exp(@)))}
+
 {dlgtab:Trivariate distributions}
 
 {pstd}
@@ -770,6 +877,23 @@
 {p 8 12 2}
         . {stata heatplot C, values(format(%9.3f)) color(hcl, diverging intensity(.6)) legend(off) aspectratio(1) lower nodiagonal}
 
+{dlgtab:Dissimilarity matrix with clusters}
+
+{pstd}
+    Illustration of the use of the {helpb heatplot##equations:equations()} option:
+
+        . {stata sysuse lifeexp, clear}
+        . {stata keep if gnppc<.}
+        . {stata cluster wards popgrowth lexp gnppc}
+        . {stata cluster generate N = groups(`=_N'), ties(fewer)}
+        . {stata cluster generate G = groups(5)}
+        . {stata sort G N}
+        . {stata matrix dissim D = popgrowth lexp gnppc}
+        . {stata `"mata: st_matrixcolstripe("D", strofreal(st_data(., "G N")))"'}
+        . {stata `"mata: st_matrixrowstripe("D", strofreal(st_data(., "G N")))"'}
+{p 8 12 2}
+        . {stata heatplot D, equations(lcolor(red)) plotregion(margin(zero)) legend(off) aspectratio(1) xscale(alt)}
+
 {dlgtab:Spacial weights matrix}
 
 {pstd}
@@ -812,9 +936,8 @@
 
 {title:Returned results}
 
-{pstd} Scalars:
-
 {p2colset 5 20 20 2}{...}
+{p2col 5 20 24 2: Scalars}{p_end}
 {p2col : {cmd:r(N)}}number of observations
     {p_end}
 {p2col : {cmd:r(levels)}}number of z levels (colors)
@@ -836,8 +959,7 @@
 {p2col : {cmd:r(x_ub)}}midpoint (or upper bound) of last x bin
     {p_end}
 
-{pstd} Macros:
-
+{p2col 5 20 24 2: Macros}{p_end}
 {p2col : {cmd:r(ztitle)}}legend title
     {p_end}
 {p2col : {cmd:r(ytitle)}}y-axis title
@@ -848,9 +970,10 @@
     {p_end}
 {p2col : {cmd:r(keylabels)}}legend keys
     {p_end}
+{p2col : {cmd:r(eqcoords)}}coordinates of equation outlines
+    {p_end}
 
-{pstd} Matrices:
-
+{p2col 5 20 24 2: Matrices}{p_end}
 {p2col : {cmd:r(cuts)}}cut points used to categorize z
     {p_end}
 
