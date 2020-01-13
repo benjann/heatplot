@@ -1,5 +1,5 @@
 {smcl}
-{* 07sep2019}{...}
+{* 13jan2020}{...}
 {hi:help heatplot}
 {hline}
 
@@ -180,7 +180,7 @@
 
 {pstd}
     {cmd:heatplot} requires {cmd:palettes} (Jann 2018) and, in Stata 14.2 or newer,
-    {cmd:colrspace} (Jann 2019). To install these packages, type
+    {cmd:colrspace} (Jann 2019a). To install these packages, type
 
         {com}. ssc install palettes, replace
         . ssc install colrspace, replace{txt}
@@ -485,8 +485,8 @@
 {phang2}
     {opt s:pace(#)} specifies the space to be consumed by the plot containing 
     the ramp, as a percentage of the overall size of the graph. In horizontal 
-    orientation the default is {cmd:length(12)}; in 
-    vertical orientation the default is {cmd:length(20)}.
+    orientation the default is {cmd:space(12)}; in 
+    vertical orientation the default is {cmd:space(20)}.
 
 {phang2}
     {opt trans:form(@exp)} causes the ramp to be displayed on a transformed 
@@ -497,7 +497,7 @@
     {cmd:ramp(transform(exp(@))}.
 
 {phang2}
-    {opt c:ombine(combine_options)} are option to be passed through to 
+    {opt c:ombine(combine_options)} are options to be passed through to 
     {helpb graph combine}, such as {it:{help region_options}}. Note that the 
     following options will be collected from the main options
     and passed through to {helpb graph combine} automatically: {cmd:title()}, 
@@ -742,6 +742,9 @@
 {marker examples}{...}
 {title:Examples}
 
+{pstd}
+    Also see {browse "http://ideas.repec.org/p/boc/usug19/24.html":Jann (2019b)}.
+
 {dlgtab:Histograms}
 
 {pstd}
@@ -877,6 +880,20 @@
 {p 8 12 2}
         . {stata heatplot C, values(format(%9.3f)) color(hcl, diverging intensity(.6)) legend(off) aspectratio(1) lower nodiagonal}
 
+{pstd}
+    An issue with correlation graph above is that the color gradient is not
+    centered at zero. If using a diverging gradient, we would probably want the
+    center of the gradient to denote a correlation of zero, and then
+    use symmetric intervals on both sides. Use the {helpb heatplot##cuts:cuts()}
+    option control how the intervals are constructed. Examples:
+
+{p 8 12 2}
+        . {stata heatplot C, color(hcl, diverging intensity(.6)) aspectratio(1) cuts(-1.05(.1)1.05)}
+{p_end}
+{p 8 12 2}
+        . {stata heatplot C, color(hcl, diverging intensity(.6)) aspectratio(1) cuts(-1(`=2/15')1) keylabels(, interval)}
+{p_end}
+
 {dlgtab:Dissimilarity matrix with clusters}
 
 {pstd}
@@ -991,10 +1008,13 @@
     18(4): 765-785.
     {p_end}
 {phang}
-    Jann, B. (2019). ColrSpace: Mata class for color management. Available from
+    Jann, B. (2019a). ColrSpace: Mata class for color management. Available from
     {browse "http://ideas.repec.org/c/boc/bocode/s458597.html"}.
     {p_end}
-
+{phang}
+    Jann, B. (2019b). Heat (and hexagon) plots in Stata. Presentation at London 
+    Stata Conference 2019. Available from {browse "http://ideas.repec.org/p/boc/usug19/24.html"}.
+    {p_end}
 
 {title:Author}
 
