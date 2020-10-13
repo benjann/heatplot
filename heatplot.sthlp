@@ -1,5 +1,5 @@
 {smcl}
-{* 13jan2020}{...}
+{* 14may2020}{...}
 {hi:help heatplot}
 {hline}
 
@@ -239,7 +239,7 @@
     palette allowed by {helpb colorpalette} (which can also be a simple list of colors, see
     help {it:{help colorpalette##colorlist:colorlist}}) and {it:palette_options} are
     corresponding options. The default is {cmd:colors(viridis)}. For example, to use a
-    red to blue HCL color scheme, you could type {cmd:colors(hcl, bluered reverse)}. In
+    red to blue HCL color scheme, you could type {cmd:colors(hcl bluered, reverse)}. In
     Stata versions older than 14.2, {cmd:heatplot} uses command
     {helpb colorpalette9} instead of {helpb colorpalette}
     and sets the default to {cmd:colors(hcl, viridis)}.
@@ -872,13 +872,13 @@
         . {stata matrix C = r(C)}
 {p_end}
 {p 8 12 2}
-        . {stata heatplot C, values(format(%9.3f)) color(hcl, diverging intensity(.6)) legend(off) aspectratio(1)}
+        . {stata heatplot C, values(format(%9.3f)) color(hcl diverging, intensity(.6)) legend(off) aspectratio(1)}
 
 {pstd}
     Display only lower triangle and omit the diagonal:
 
 {p 8 12 2}
-        . {stata heatplot C, values(format(%9.3f)) color(hcl, diverging intensity(.6)) legend(off) aspectratio(1) lower nodiagonal}
+        . {stata heatplot C, values(format(%9.3f)) color(hcl diverging, intensity(.6)) legend(off) aspectratio(1) lower nodiagonal}
 
 {pstd}
     An issue with correlation graph above is that the color gradient is not
@@ -888,10 +888,10 @@
     option control how the intervals are constructed. Examples:
 
 {p 8 12 2}
-        . {stata heatplot C, color(hcl, diverging intensity(.6)) aspectratio(1) cuts(-1.05(.1)1.05)}
+        . {stata heatplot C, color(hcl diverging, intensity(.6)) aspectratio(1) cuts(-1.05(.1)1.05)}
 {p_end}
 {p 8 12 2}
-        . {stata heatplot C, color(hcl, diverging intensity(.6)) aspectratio(1) cuts(-1(`=2/15')1) keylabels(, interval)}
+        . {stata heatplot C, color(hcl diverging, intensity(.6)) aspectratio(1) cuts(-1(`=2/15')1) keylabels(, interval)}
 {p_end}
 
 {dlgtab:Dissimilarity matrix with clusters}

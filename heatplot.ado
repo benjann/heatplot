@@ -1,4 +1,4 @@
-*! version 1.0.5  07sep2019  Ben Jann
+*! version 1.0.6  13oct2020  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -552,7 +552,7 @@ program heatplot, rclass
     }
     
     // get colors
-    if "`colors'"=="" {
+    if `"`colors'"'=="" {
         if c(stata_version)<14.2 local colors "viridis"
         else                     local colors "hcl, viridis"
     }

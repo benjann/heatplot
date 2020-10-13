@@ -37,6 +37,10 @@ Installation from GitHub:
 
 Main changes:
 
+    13oct2020
+    - option colors() did not work with color specifications that included
+      quotes; this is fixed
+    
     07sep2019
     - new ramp() option
     - new equations() option in syntax 3
