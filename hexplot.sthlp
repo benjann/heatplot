@@ -1,6 +1,6 @@
 {smcl}
-{* 30jan2019}{...}
-{hi:help hexplot}
+{* 13oct2020}{...}
+{hi:help hexplot}{right:{browse "http://github.com/benjann/heatplot/"}}
 {hline}
 
 {title:Title}
