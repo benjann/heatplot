@@ -1,9 +1,9 @@
 v 3
 d heatplot: module to create heat plots and hexagon plots
 d 
-d Author: Ben Jann, University of Bern, ben.jann@soz.unibe.ch
+d Author: Ben Jann, University of Bern, ben.jann@unibe.ch
 d
-d Distribution-Date: 20201013
+d Distribution-Date: 20210719
 f hexplot.sthlp
 f heatplot.sthlp
 f heatplot.ado

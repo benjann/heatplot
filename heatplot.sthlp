@@ -1,5 +1,5 @@
 {smcl}
-{* 13oct2020}{...}
+{* 19jul2021}{...}
 {hi:help heatplot}{right:{browse "http://github.com/benjann/heatplot/"}}
 {hline}
 
@@ -23,13 +23,14 @@
     ]
 
 {pmore}
-    where {cmd:i.}{it:varname} is allowed for {it:y} and {it:x}
+    where {cmd:i.}{it:varname} is allowed for {it:y} and {it:x}. If {it:z}
+    is omitted, {it:z} is assumed to be a constant equal to 1.
 
 {pstd}
     Syntax 2: Heat plot from Mata matrix
 
 {p 8 15 2}
-    {cmd:heatplot} {opt mata(M)}
+    {cmd:heatplot} {opt mata(name)}
     [{cmd:,}
     {help heatplot##zopt:{it:z_options}}
     {help heatplot##yxopt:{it:yx_options}}
@@ -38,16 +39,25 @@
     {help heatplot##genopt:{it:generate_options}}
     ]
 
+{pmore}
+    where {it:name} is a numeric {help mata:Mata matrix} (contents = {it:z}, row index = {it:y},
+    column index = {it:x}).
+
 {pstd}
     Syntax 3: Heat plot from Stata matrix
 
 {p 8 15 2}
-    {cmd:heatplot} {it:matrix} [{cmd:,}
+    {cmd:heatplot} {it:matname} [{cmd:,}
     {help heatplot##zopt:{it:z_options}}
     {help heatplot##mopt:{it:matrix_options}}
     {help heatplot##gropt:{it:graph_options}}
     {help heatplot##genopt:{it:generate_options}}
     ]
+
+{pmore}
+    where {it:matname} is a {help matrix:Stata matrix}
+    (contents = {it:z}, row names = {it:y}, column names = {it:x}).
+
 
 {synoptset 22}{...}
 {marker zopt}{synopthdr:z_options}
@@ -64,11 +74,13 @@
     {p_end}
 {synopt :{helpb heatplot##fast:fast}}(syntax 1 and 2 only) use fast aggregation; requires {helpb gtools}
     {p_end}
-{synopt :{helpb heatplot##transform:{ul:trans}form({it:@exp})}}transform z values before binning
+{synopt :{helpb heatplot##normalize:{ul:norm}alize}}normalize z values by the size of the covered area
+        {p_end}
+{synopt :{helpb heatplot##transform:{ul:trans}form({it:@exp})}}transform z values before creating color bins
         {p_end}
 {synopt :{helpb heatplot##size:size}}scale size of color fields by absolute values of z
     {p_end}
-{synopt :{helpb heatplot##size:size({it:exp})}}(syntax 1 only) scale size of color fields by (average) values of {it:{help exp}}
+{synopt :{helpb heatplot##size:size({it:spec})}}scale size of color fields by alternative values
     {p_end}
 {synopt :{helpb heatplot##sizeprop:{ul:sizep}rop}}(syntax 1 only) scale size of color fields by relative frequencies
     {p_end}
@@ -100,6 +112,9 @@
     continuous {it:y} and {it:x} are binned
     {p_end}
 {synopt :{helpb heatplot##bins:{sf:[}{ul:x}{sf:|}{ul:y}{sf:]}{ul:bw}idth({it:spec})}}how
+    continuous {it:y} and {it:x} are binned; alternative to {cmd:bins()}
+    {p_end}
+{synopt :{helpb heatplot##bcuts:{sf:[}{ul:x}{sf:|}{ul:y}{sf:]}{ul:bc}uts({it:numlist})}}how
     continuous {it:y} and {it:x} are binned; alternative to {cmd:bins()}
     {p_end}
 {synopt :{helpb heatplot##discrete:{sf:[}{ul:x}{sf:|}{ul:y}{sf:]}{ul:discr}ete{sf:[}({it:#}){sf:]}}}treat variables
@@ -262,15 +277,19 @@
 {marker statistic}{...}
 {phang}
     {opt statistic(stat)} sets the type of aggregation of z values within
-    yx-bins. {opt statistic()} is only allowed in syntax 1 and 2. {it:stat}
-    can be any statistic supported by {helpb collapse}. In addition, {it:stat}
-    can be {cmd:density} to compute densities (i.e. proportion divided by y-width*x-width),
-    {cmd:proportion} to compute proportions (rather than percentages), or
-    {cmd:asis} to skip aggregation. Use {cmd:asis} only if you are certain that all combinations of
-    (binned) {it:y} and {it:x} are unique; the only reason you may want to specify {cmd:asis} is to
-    save computer time. In syntax 1, if variable {it:z} is provided, the default
-    is {cmd:statistic(mean)}; if {it:z} is omitted, the
-    default is {cmd:statistic(percent)}. In syntax 2, the default is {cmd:statistic(sum)},
+    yx-bins. {opt statistic()} is only allowed in syntax 1 and 2 (in syntax 3,
+    each cell of the specified matrix constitutes a separate color field; hence, there is
+    no aggregation). {it:stat} can be any statistic supported by {helpb collapse}. In
+    addition, {it:stat} can be {cmd:proportion} to compute proportions (rather
+    than percentages) or {cmd:asis} to skip aggregation. The main purpose of
+    {cmd:asis} is to save computer time in cases where no aggregation is
+    needed; typically, you only want to specify {cmd:asis} if you are certain
+    that all combinations of (binned) {it:y} and {it:x} are unique.
+
+{pmore}
+    In syntax 1, if variable {it:z} is provided, the default is
+    {cmd:statistic(mean)}; if {it:z} is omitted, the default is
+    {cmd:statistic(percent)}. In syntax 2, the default is {cmd:statistic(sum)},
     or, if {cmd:discrete} has been specified, {cmd:statistic(asis)}.
 
 {marker fast}{...}
@@ -282,23 +301,77 @@
     installed on the system; see {browse "http://github.com/mcaceresb/stata-gtools"}
     for more information. Option {opt fast} is only allowed in syntax 1 and 2.
 
+{marker normalize}{...}
+{phang}
+    {opt normalize} causes the (aggregated) z values to be normalized by the size
+    of the area covered by a color field before assigning colors. For example, specifying
+    {cmd:normalize} together with {cmd:statistic(proportion)} will visualize densities 
+    instead of proportions. {cmd:normalize} may be useful if you clip the color
+    fields using option {helpb heatplot##clip:clip} or if you apply option
+    {helpb heatplot##bcuts:bcuts()} in a way such that color fields have different
+    sizes. The area covered by a color field will be computed before rescaling
+    the fields according to {helpb heatplot##size:size()} or
+    {helpb heatplot##sizeprop:sizeprop}. If option
+    {helpb heatplot##scatter:scatter} is specified, the sizes of the areas
+    will be computed as if {cmd:scatter} was not specified. If
+    option {helpb heatplot##hexagon:hexagon} is specified, the computations will
+    be based on the (possibly clipped) shapes of the hexagons. {cmd:normalize}
+    has no effect in syntax 3.
+
 {marker transform}{...}
 {phang}
-    {opt transform(@exp)} causes the (aggregated) z values to be transformed before applying
-    categorization. {it:@exp} is an expression (see {it:{help exp}}) in which {cmd:@} acts as
-    a placeholder for the values to be transformed. For example, to take the natural logarithm,
+    {opt transform(@exp)} causes the (aggregated and, possibly, normalized) z
+    values to be transformed before assigning colors. {it:@exp} is
+    an expression (see {it:{help exp}}) in which {cmd:@} acts as a placeholder
+    for the values to be transformed. For example, to take the natural logarithm,
     type {cmd:transform(ln(@))}.
 
 {marker size}{...}
 {phang}
-    {opt size}[{opt (exp)}] scales the size of the color fields in proportion to the absolute value
-    of (aggregated) z or, if {it:{help exp}} is specified, in proportion to the (average) evaluation of
-    {it:exp} (typically, {it:exp} is simply a variable name). Specifying {it:exp} is only allowed in syntax 1.
+    {opt size}[{cmd:(}{it:spec}{cmd:)}] scales the sizes of the color fields. If
+    {cmd:size} is specified without argument, the color fields will be scaled in
+    proportion to the absolute value of (aggregated and, possibly,
+    normalized) z. Alternatively, provide a custom source for the scaling as
+    follows.
+
+{pmore}
+    In syntax 1, specify
+    {cmd:size(}{it:exp}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
+    to obtain the size information from {it:{help exp}} (typically, {it:exp}
+    is a simple variable name). Observations for which {it:exp} is missing will
+    {it:not} be excluded from the estimation sample; if {it:exp} is missing for
+    all observations within a specific color field, the size of the field will
+    be set to the minimum as set by {helpb heatplot##srange:srange()}.
+
+{pmore}
+    In syntax 2, specify
+    {cmd:size(}{it:name}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
+    to obtain the size information from Mata matrix {it:name}.
+
+{pmore}
+    In syntax 3, specify {opt size(matname)} to obtain the size information
+    from Stata matrix {it:matname}.
+
+{pmore}
+    In syntax 1 and 2, suboption {opt statistic(stat)} sets the type
+    of aggregation, where {it:stat} can be any statistic supported by
+    {helpb collapse} (the default is {cmd:mean}). Suboption {cmd:statistic()}
+    is only relevant if the main {helpb heatplot##statistic:statistic()} option
+    has not been set to {cmd:asis}.
+
+{pmore}
+    In syntax 2 and 3, the provided matrix must be numeric and must have the
+    same dimension as the main matrix.
+
+{pmore}
+    In any case, absolute values of the (possibly aggregated) information will
+    be used for the scaling.
 
 {marker sizeprop}{...}
 {phang}
-    {opt sizeprop} scales the size of the color fields in proportion to the relative frequency
-    of the underlying data. {opt sizeprop} is only allowed in syntax 1.
+    {opt sizeprop} scales the size of the color fields in proportion to the
+    relative frequency of the underlying data. Use {cmd:sizeprop} as an
+    alternative to {cmd:size()}. {opt sizeprop} is only allowed in syntax 1.
 
 {marker recenter}{...}
 {phang}
@@ -336,15 +409,81 @@
 
 {marker values}{...}
 {phang}
-    {opt values}[{opt (options)}] displays the (aggregated) z values as marker labels in the middle of the color
-    fields. {it:options} are:
+    {opt values}[{opt (options)}] displays the z values (or other information)
+    as marker labels in the middle of the color fields. {it:options} are:
 
 {phang2}
-    {opth f:ormat(%fmt)} sets the display format for the values.
+    {opt l:abel(spec)} determines the source of the values of the labels. The
+    default is to display the (aggregated and, possibly, normalized) z
+    values.
+
+{pmore2}
+    In syntax 1, specify
+    {cmd:label(}{it:exp}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
+    to display the (aggregated) value of {it:{help exp}} (typically, {it:exp}
+    is a simple variable name). Observations for which {it:exp} is missing will
+    {it:not} be excluded from the estimation sample.
+
+{pmore2}
+    In syntax 2, specify
+    {cmd:label(}{it:name}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
+    to obtain the values from Mata matrix {it:name}.
+
+{pmore2}
+    In syntax 3, specify {opt label(matname)} to obtain the values
+    from Stata matrix {it:matname}.
+
+{pmore2}
+    In syntax 1 and 2, suboption {opt statistic(stat)} sets the type
+    of aggregation, where {it:stat} can be any statistic supported by
+    {helpb collapse} (the default is {cmd:mean}). Suboption {cmd:statistic()}
+    is only relevant if the main {helpb heatplot##statistic:statistic()} option
+    has not been set to {cmd:asis}.
+
+{pmore2}
+    In syntax 2 and 3, the provided matrix must be numeric and must have the
+    same dimension as the main matrix.
 
 {phang2}
-    {help marker_label_options} are options so affect the rendering of the marker labels; see help
-    {it:{help marker_label_options}}.
+    {opt trans:form(@exp)} causes the values to be transformed before
+    displaying. {it:@exp} is an expression (see {it:{help exp}}) in which
+    {cmd:@} acts as a placeholder for the values to be transformed. The result
+    of {it:@exp} may be numeric or string; for example, you could type
+    {cmd:transform(cond(@>0, "+", cond(@<0, "-", "")))} to display "+" or "-"
+    (or nothing) depending on whether the value is (strictly) positive or
+    (strictly) negative.
+
+{phang2}
+    {opth sty:le(markerlabelstyle)} sets the overall style of the labels.
+
+{phang2}
+    {opth p:osition(clockposstyle)} specifies where the label is to be located
+    relative to the middle of the color field. The default is {cmd:position(0)}
+    (centered).
+
+{phang2}
+    {opth g:ap(size)} specifies how much space should be put between the
+    label the middle of the color field. This is only relevant if {cmd:position()}
+    is not 0.
+
+{phang2}
+    {opth ang:le(anglestyle)} specifies the angle of the text.
+
+{phang2}
+    {opth s:ize(textsizestyle)} specifies the size of the text.
+
+{phang2}
+    {opth c:olor(colorstyle)} specifies the color of the text. Default is
+    {cmd:color(black)} (unless {cmd:style()} is specified in which case the
+    color is determined by the selected style).
+
+{phang2}
+    {opth f:ormat(%fmt)} sets the display format for the values. This option is
+    only useful if the labels are numeric.
+
+{pmore}
+    For more details on options {cmd:style()} through {cmd:format()} also see
+    the corresponding options with {cmd:"mlab"} prefix in {it:{help marker_label_options}}.
 
 {marker hexagon}{...}
 {phang}
@@ -353,28 +492,22 @@
     {cmd:scatter} are not both allowed. {it:options} are:
 
 {phang2}
-    {opt vert:ical} arranges the hexagons vertically; this is the default.
+    {opt hor:izontal} arranges the hexagons horizontally. The default is to arrange
+    the hexagons vertically.
 
 {phang2}
-    {opt hor:izontal} arranges the hexagons horizontally. Only one of {cmd:vertical}
-    and {cmd:horizontal} is allowed.
+    {opt left} starts with a left-shifted hexagon row. The default is to start 
+    with a right-shifted row. If {cmd:horizontal} is specified, {cmd:left}
+    starts with an down-shifted row instead of an up-shifted row.
 
 {phang2}
-    {opt right} starts with a right-shifted hexagon row (the default).
-
-{phang2}
-    {opt left} starts with a left-shifted hexagon row. Only one of {cmd:right}
-    and {cmd:left} is allowed.
-
-{phang2}
-    {opt even} uses an even number of hexagon columns (the default).
-
-{phang2}
-    {opt odd} uses an odd number of hexagon columns. Only one of {cmd:even}
-    and {cmd:odd} is allowed. Each
-    x-axis bin (or y-axis bin if {cmd:horizontal} is specified) contains a
-    double column of hexagons. To use a single column for the last bin and thus have
-    an odd overall number of columns, specify {cmd:odd}.
+    {opt odd} uses an odd number of hexagon columns. The default is to use
+    an even number of columns. That is, by default the bins on the x-axis are
+    constructed in a way such that each bin contains a double column of hexagons,
+    yielding an even overall number of columns. Specify {cmd:odd} to construct the
+    bins in a way such that the last bin only contains a single column. If 
+    {cmd:horizontal} is specified, {cmd:odd} affects the number of
+    rows rather than columns.
 
 {marker scatter}{...}
 {phang}
@@ -449,47 +582,47 @@
 
 {marker ramp}{...}
 {phang}
-    {cmd:ramp}[{cmd:(}{it:options}{cmd:)}] renders the legend as a color ramp 
-    instead of using {helpb graph}'s legend 
-    option. Internally, if {cmd:ramp} is specified, two graphs are created, one 
+    {cmd:ramp}[{cmd:(}{it:options}{cmd:)}] renders the legend as a color ramp
+    instead of using {helpb graph}'s legend
+    option. Internally, if {cmd:ramp} is specified, two graphs are created, one
     for the main plot and one for the color ramp; these plots are then combined into a single graph
     using {helpb graph combine}. {it:options} are:
 
 {phang2}
-    {opt l:eft}, {opt r:ight}, {opt t:op}, or {opt b:ottom} specify the location 
-    of the ramp on the final graph. The location also affects the orientation of 
-    the ramp. In case of {cmd:top} or {cmd:bottom}, the ramp 
+    {opt l:eft}, {opt r:ight}, {opt t:op}, or {opt b:ottom} specify the location
+    of the ramp on the final graph. The location also affects the orientation of
+    the ramp. In case of {cmd:top} or {cmd:bottom}, the ramp
     will be oriented horizontally; in case of {cmd:left} or {cmd:right}, the ramp
     will be oriented vertically. The default is {cmd:bottom}.
 
 {phang2}
-    {opt lab:els(rule_or_values)} specifies how the axis of the ramp 
-    should be labeled and ticked, where {it:rule_or_values} is as described in 
-    {it:{help axis_label_options}}. You may specify {cmd:@min} 
-    and {cmd:@max} to refer to the lower bound of the first interval and the 
-    upper bound of the last interval. For example, you could type 
+    {opt lab:els(rule_or_values)} specifies how the axis of the ramp
+    should be labeled and ticked, where {it:rule_or_values} is as described in
+    {it:{help axis_label_options}}. You may specify {cmd:@min}
+    and {cmd:@max} to refer to the lower bound of the first interval and the
+    upper bound of the last interval. For example, you could type
     {cmd:labels(@min .5 @max)} to place a label at the minimum, at 0.5, and at the maximum. Various
-    suboptions are available to control the rendering of the labels and ticks; see 
+    suboptions are available to control the rendering of the labels and ticks; see
     {it:{help axis_label_options}}.
 
 {phang2}
-    {opth f:ormat(%fmt)} sets the display format for the labels. The default 
+    {opth f:ormat(%fmt)} sets the display format for the labels. The default
     is {cmd:%7.0g}.
 
 {phang2}
-    {opt l:ength(#)} sets the length of the ramp as a percentage of the 
-    available space (the graph's width or height, depending on the orientation 
-    of the ramp). In horizontal orientation the default is {cmd:length(80)}; in 
+    {opt l:ength(#)} sets the length of the ramp as a percentage of the
+    available space (the graph's width or height, depending on the orientation
+    of the ramp). In horizontal orientation the default is {cmd:length(80)}; in
     vertical orientation the default is {cmd:length(60)}.
 
 {phang2}
-    {opt s:pace(#)} specifies the space to be consumed by the plot containing 
-    the ramp, as a percentage of the overall size of the graph. In horizontal 
-    orientation the default is {cmd:space(12)}; in 
+    {opt s:pace(#)} specifies the space to be consumed by the plot containing
+    the ramp, as a percentage of the overall size of the graph. In horizontal
+    orientation the default is {cmd:space(12)}; in
     vertical orientation the default is {cmd:space(20)}.
 
 {phang2}
-    {opt trans:form(@exp)} causes the ramp to be displayed on a transformed 
+    {opt trans:form(@exp)} causes the ramp to be displayed on a transformed
     scale. {it:@exp} is an expression in which {cmd:@} acts as
     a placeholder for the values to be transformed. Typically, {it:@exp} will be
     the inverse of the main {helpb heatplot##transform:transform()}
@@ -497,16 +630,16 @@
     {cmd:ramp(transform(exp(@))}.
 
 {phang2}
-    {opt c:ombine(combine_options)} are options to be passed through to 
-    {helpb graph combine}, such as {it:{help region_options}}. Note that the 
+    {opt c:ombine(combine_options)} are options to be passed through to
+    {helpb graph combine}, such as {it:{help region_options}}. Note that the
     following options will be collected from the main options
-    and passed through to {helpb graph combine} automatically: {cmd:title()}, 
-    {cmd:subtitle()}, {cmd:note()}, {cmd:caption()}, {cmd:ysize()}, 
-    {cmd:xsize()}, {cmd:nodraw}, {cmd:scheme()}, {cmd:name()}, and 
+    and passed through to {helpb graph combine} automatically: {cmd:title()},
+    {cmd:subtitle()}, {cmd:note()}, {cmd:caption()}, {cmd:ysize()},
+    {cmd:xsize()}, {cmd:nodraw}, {cmd:scheme()}, {cmd:name()}, and
     {cmd:saving()}.
 
 {phang2}
-    {it:{help twoway_options}} are general options to be applied to the plot 
+    {it:{help twoway_options}} are general options to be applied to the plot
     containing the color ramp.
 
 {marker p}{...}
@@ -570,7 +703,7 @@
     {cmd:tight} makes the bins tight. By default {it:lb} and {it:ub} are
     interpreted as midpoints of the the first and last bins. Specify
     {cmd:tight} to treat {it:lb} and {it:ub} as outer bounds of the the first
-    and last bins (in general, all bins are defined using right-open intervals; 
+    and last bins (in general, all bins are defined using right-open intervals;
     however, if {cmd:tight} is specified, observations equal to {it:ub} will
     be included in the last bin). If {cmd:tight} is specified together with {cmd:hexagon},
     the first and last bins are made as tight as possible given the shape and
@@ -594,6 +727,21 @@
     y and x have the same scale, you may want to set the width of y-bins to
     sqrt(3)/2 times the width of x-bins.
 
+{marker bins}{...}
+{phang}
+    {opth bcuts(numlist)}, {opth ybcuts(numlist)} and {opth xbcuts(numlist)}
+    specify how {it:y} and {it:x} are binned. Use these options as an alternative
+    to [{cmd:y}|{cmd:x}]{cmd:bins()} or [{cmd:y}|{cmd:x}]{cmd:bwidth()}. {cmd:bcuts()}
+    affects both, y and x; {cmd:ybcuts()} and {opt xbcuts()} only affect y or x,
+    respectively, taking precedence over {cmd:bcuts()}. {it:numlist} is an (ascending)
+    list of (at least two) cutpoints defining the bins. The bins are defined
+    as right-open intervals from one cutpoint to the next (except for the last bin
+    which is right-closed). Data smaller than the first cutpoint or larger then
+    the last cutpoint will not be displayed, but will be taken into
+    account when computing relative frequencies. Option {helpb heatplot##clip:clip}
+    will have no effect for variables binned by {cmd:bcuts()}. Option
+    {helpb heatplot##hexagon:hexagon} is not allowed with {cmd:bcuts()}.
+
 {marker discrete}{...}
 {phang}
     {opt discrete}[{opt (#)}], {opt ydiscrete}[{opt (#)}], and {opt xdiscrete}[{opt (#)}]
@@ -601,7 +749,9 @@
     affects both, y and x. {cmd:ydiscrete} and {opt xdiscrete} only affect y or x,
     respectively. Typically, treating variables as discrete only makes sense if
     their values are regularly spaced, as {cmd:heatplot} will print color fields
-    centered at each observed value. Optional argument {it:#}
+    centered at each observed value (furthermore, although allowed, specifying 
+    {helpb heatplot##hexagon:hexagon} together with {cmd:discrete} does not
+    lead to useful results in most situations). Optional argument {it:#}
     specifies the step width affecting the size of the color fields. The default
     step width is 1. Categorical variables specified as {cmd:i.}{it:varname} are always treated as
     discrete, but you can still use [{cmd:y}|{cmd:x}]{opt discrete(#)} to affect the size of the color fields
@@ -615,10 +765,8 @@
     outside the clipped range will be omitted in this case). {cmd:clip}
     causes clipping on all four sides, {cmd:rclip} clips on the right,
     {cmd:lclip} clips on the left, {cmd:tclip} clips at the top, and {cmd:bclip}
-    clips at the bottom (any combination is allowed). Density computation for an affected field will
-    be based on the remaining area of the field after clipping (but note that combining
-    {cmd:clip} with {cmd:statistic(density)} is currently not
-    supported if {cmd:hexagon} has been specified).
+    clips at the bottom (any combination is allowed). Option {helpb heatplot##normalize:normalize}
+    will only take into account the remaining area of a field after clipping.
 
 {marker fillin}{...}
 {phang}
@@ -654,11 +802,11 @@
 
 {marker equations}{...}
 {phang}
-    {opt equations}[{cmd:(}{it:{help line_options}}{cmd:)}] uses the equation 
-    names of the matrix as axis labels, places ticks between equations, and 
+    {opt equations}[{cmd:(}{it:{help line_options}}{cmd:)}] uses the equation
+    names of the matrix as axis labels, places ticks between equations, and
     draws outlines around diagonal equation areas. This
     can be useful, for example, if the matrix contains pairwise distances and the
-    equations identify clusters. Use {it:{help line_options}} to affect the 
+    equations identify clusters. Use {it:{help line_options}} to affect the
     rendering of the outline. {opt equations()} is only allowed in
     syntax 3.
 
@@ -697,7 +845,7 @@
 {phang}
     {opt by(varlist [, byopts])} specifies that the plot should be repeated for each set of values of {varlist}; see help
     {it:{help by_option}} (but note that suboption {cmd:total} is not supported). {cmd:by()} is only allowed in syntax 1. Computation
-    of relative frequencies and densities will be across all by-groups.
+    of relative frequencies will be across all by-groups.
 
 {marker twopts}{...}
 {phang}
@@ -709,7 +857,12 @@
 {phang}
     {opt generate}[{opt (namelist)}] stores the plotted data as new
     variables. Depending on context, {cmd:generate()} might need to increase the
-    number of observations in the dataset to store the variables. The default
+    number of rows in the dataset to store the variables (by default, five rows 
+    are required per color field, the coordinates of the four corners plus
+    missing as delimiter; if option {helpb heatplot##scatter:scatter} is specified, 
+    only one row per field is required; if option {helpb heatplot##hexagon:hexagon}
+    is specified, 7 or 9 rows are required depending on whether 
+    {helpb heatplot##clip:clip} has been specified). The default
     variable names are:
 
             {cmd:_Z}       (aggregated) values of z
@@ -718,7 +871,8 @@
             {cmd:_Yshape}  y shape coordinates
             {cmd:_X}       x midpoints
             {cmd:_Xshape}  x shape coordinates
-            {cmd:_Size}    field size (if appropriate)
+            {cmd:_Size}    field size (if relevant)
+            {cmd:_Mlab}    marker label (if relevant)
 
 {pmore}
     Alternatively, specify {it:{help namelist}} containing a custom list of
@@ -780,30 +934,30 @@
 
 {dlgtab:Display color ramp instead of legend}
 
-{pstd} 
+{pstd}
     By default, a legend produced by {helpb graph}'s legend option is
     displayed. Alternatively, use the {helpb heatplot##ramp:ramp} option to render the legend as
-    a color ramp in a separate coordinate system (internally, 
-    {helpb graph combine} will be employed to combine the main plot and the 
+    a color ramp in a separate coordinate system (internally,
+    {helpb graph combine} will be employed to combine the main plot and the
     ramp in a single graph):
 
         . {stata webuse nhanes2, clear}
         . {stata heatplot weight height, ramp}
 
-{pstd} 
-    Place ramp on right, adjust the space used for the 
+{pstd}
+    Place ramp on right, adjust the space used for the
     ramp, specify custom labels:
 
 {p 8 12 2}
         . {stata heatplot weight height, ramp(right space(12) label(0(.1).9))}
 
-{pstd} 
+{pstd}
     Use text labels and remove title:
 
 {p 8 12 2}
         . {stata heatplot weight height, ramp(right label(@min "low" @max "high") subtitle(""))}
 
-{pstd} 
+{pstd}
     Assign colors based on a transformed scale and retransform the ramp:
 
 {p 8 12 2}
@@ -839,11 +993,11 @@
         . {stata sysuse surface, clear}
 {p_end}
 {p 8 12 2}
-        . {stata heatplot temperature longitude latitude, discrete(.5) statistic(asis) by(date, legend(off)) ylabel(30(1)38) aspectratio(1)}
+        . {stata heatplot temperature longitude latitude, bwidth(.5) statistic(asis) by(date, legend(off)) ylabel(30(1)38) aspectratio(1)}
 
 {pmore}
      In this data, {cmd:longitude} and {cmd:latitude} are on a regular grid with a step width of half a degree. This is why
-     we treat them as discrete and set the step width to 0.5 using option {cmd:discrete(.5)}. Furthermore, for each
+     we set the bin width to 0.5 using option {cmd:bwidth(.5)}. Furthermore, for each
      combination of {cmd:date}, {cmd:longitude}, and {cmd:latitude} there is only a single {cmd:temperature} measurement. This
      is why we can add option {cmd:statistic(asis)}. The option is not strictly needed, it just skips unnecessary
      computations.
@@ -852,7 +1006,7 @@
     Same plot using hexagons:
 
 {p 8 12 2}
-        . {stata heatplot temperature longitude latitude, hexagon discrete(.5) clip statistic(asis) by(date, legend(off)) ylabel(30(1)38) aspectratio(1)}
+        . {stata heatplot temperature longitude latitude, hexagon bwidth(.5) clip statistic(asis) by(date, legend(off)) ylabel(30(1)38) aspectratio(1)}
 
 {pmore}
     Option {cmd:clip} has been specified to clip the hexagons at the outer bounds of the data.
@@ -893,6 +1047,31 @@
 {p 8 12 2}
         . {stata heatplot C, color(hcl diverging, intensity(.6)) aspectratio(1) cuts(-1(`=2/15')1) keylabels(, interval)}
 {p_end}
+
+{pstd}
+    As seen above, option {cmd:values()} can be used to display the values of the correlations
+    with the color fields. It is also possible to print alternative information collected from
+    a second matrix using suboption {cmd:label()}. In the following example, p-values are printed:
+
+{p 8 12 2}
+        . {stata pwcorr price mpg trunk weight length turn foreign, sig}
+{p_end}
+{p 8 12 2}
+        . {stata matrix C = r(C)}
+{p_end}
+{p 8 12 2}
+        . {stata matrix sig = r(sig)}
+{p_end}
+{p 8 12 2}
+        . {stata heatplot C, values(label(sig) format(%9.3f)) color(hcl diverging, intensity(.6)) legend(off) aspectratio(1)}
+
+{pstd}
+    Furthermore, suboption {cmd:transform()} can be used to edit the labels. Here is an
+    example that marks non-significant correlations:
+
+{p 8 12 2}
+        . {stata heatplot C, values(label(sig) transform(cond(@>.05, "n.s.", ""))) color(hcl diverging, intensity(.6)) legend(off) aspectratio(1)}
+
 
 {dlgtab:Dissimilarity matrix with clusters}
 
@@ -1012,14 +1191,14 @@
     {browse "http://ideas.repec.org/c/boc/bocode/s458597.html"}.
     {p_end}
 {phang}
-    Jann, B. (2019b). Heat (and hexagon) plots in Stata. Presentation at London 
+    Jann, B. (2019b). Heat (and hexagon) plots in Stata. Presentation at London
     Stata Conference 2019. Available from {browse "http://ideas.repec.org/p/boc/usug19/24.html"}.
     {p_end}
 
 {title:Author}
 
 {pstd}
-    Ben Jann, University of Bern, ben.jann@soz.unibe.ch
+    Ben Jann, University of Bern, ben.jann@unibe.ch
 
 {pstd}
     Thanks for citing this software as follows:

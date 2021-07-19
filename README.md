@@ -37,6 +37,26 @@ Installation from GitHub:
 
 Main changes:
 
+    19jul2021
+    - new [x|y]bcuts() option to cut x and y at arbitrary values (not allowed with
+      hexagon)
+    - option values() has been revised; new label() suboption can be used to select
+      a secondary variable or matrix for the values; new transform() suboption
+      transforms the values; other suboptions have been renamed
+    - size(exp) is now also allowed in syntax 2 and 3, where exp is the name of a
+      (mata) matrix; size() now has a statistic() suboption to set the type of
+      aggregation; observations for which exp is missing are no longer excluded
+      from the estimation sample
+    - new -normalize- option normalizes the plotted results by dividing by the size
+      of the corresponding color field
+    - if [x|y]discrete is specified together with hexagon, a color field is now printed
+      at each unique value (similar the behavior without option hexagon)
+    - shapes of clipped hexagons were not always correct; this is fixed
+    - option generate failed in syntax 2 and 3 if the current dataset was empty
+      (unless -nopreserve- was specified); this is fixed
+    - other than stated in the documentation, palette -hcl, viridis- was used as the 
+      default palette in Stata 14.2 or newer instead of palette -viridis-; this is fixed
+
     13oct2020
     - option colors() did not work with color specifications that included
       quotes; this is fixed

@@ -1,5 +1,5 @@
 {smcl}
-{* 13oct2020}{...}
+{* 19jul2021}{...}
 {hi:help hexplot}{right:{browse "http://github.com/benjann/heatplot/"}}
 {hline}
 
@@ -20,43 +20,47 @@
     ]
 
 {pmore}
-    where {cmd:i.}{it:varname} is allowed for {it:y} and {it:x}
+    where {cmd:i.}{it:varname} is allowed for {it:y} and {it:x}. If {it:z}
+    is omitted, {it:z} is assumed to be a constant equal to 1.
 
 {pstd}
     Syntax 2: Hex plot from Mata matrix
 
 {p 8 15 2}
-    {cmd:hexplot} {opt m:ata(M)}
+    {cmd:hexplot} {opt m:ata(name)}
     [{cmd:,}
     {help hexplot##opts:{it:options}}
     ]
+
+{pmore}
+    where {it:name} is a numeric {help mata:Mata matrix} (contents = {it:z}, row index = {it:y},
+    column index = {it:x}).
 
 {pstd}
     Syntax 3: Hex plot from Stata matrix
 
 {p 8 15 2}
-    {cmd:hexplot} {it:matrix} [{cmd:,}
+    {cmd:hexplot} {it:matname} [{cmd:,}
     {help hexplot##opts:{it:options}}
     ]
+
+{pmore}
+    where {it:matname} is a {help matrix:Stata matrix}
+    (contents = {it:z}, row names = {it:y}, column names = {it:x}).
+
 
 {marker opts}{...}
 {synoptset 22}{...}
 {synopthdr:options}
 {synoptline}
-{synopt :{opt vert:ical}}arrange hexagons vertically (the default)
-    {p_end}
 {synopt :{opt hor:izontal}}arrange hexagons horizontally
     {p_end}
-{synopt :{opt right}}start with a right shift (the default)
-    {p_end}
 {synopt :{opt left}}start with a left shift
-    {p_end}
-{synopt :{opt even}}use even number of columns (the default)
     {p_end}
 {synopt :{opt odd}}use odd number of columns
     {p_end}
 {synopt :{helpb heatplot##heatopts:{it:heatplot_options}}}Syntax 1, Syntax 2, or
-    Syntax 3 options of {helpb heatplot}, except {cmd:scatter()} and {cmd:hexagon()}
+    Syntax 3 options of {helpb heatplot}
     {p_end}
 {synoptline}
 
@@ -75,33 +79,27 @@
 {title:Options}
 
 {phang}
-    {opt vertical} arranges the hexagons vertically; this is the default.
+    {opt horizontal} arranges the hexagons horizontally. The default is to arrange
+    the hexagons vertically.
 
 {phang}
-    {opt horizontal} arranges the hexagons horizontally. Only one of {cmd:vertical}
-    and {cmd:horizontal} is allowed.
+    {opt left} starts with a left-shifted hexagon row. The default is to start 
+    with a right-shifted row. If {cmd:horizontal} is specified, {cmd:left}
+    starts with an down-shifted row instead of an up-shifted row.
 
 {phang}
-    {opt right} starts with a right-shifted hexagon row (the default).
-
-{phang}
-    {opt left} starts with a left-shifted hexagon row. Only one of {cmd:right}
-    and {cmd:left} is allowed.
-
-{phang}
-    {opt even} uses an even number of hexagon columns (the default).
-
-{phang}
-    {opt odd} uses an odd number of hexagon columns. Only one of {cmd:even}
-    and {cmd:odd} is allowed. By default, each
-    x-axis bin (or y-axis bin if {cmd:horizontal} has been specified) contains a
-    double column of hexagons. To use a single column for the last bin and thus have
-    an odd overall number of columns, specify {cmd:odd}.
+    {opt odd} uses an odd number of hexagon columns. The default is to use
+    an even number of columns. That is, by default the bins on the x-axis are
+    constructed in a way such that each bin contains a double column of hexagons,
+    yielding an even overall number of columns. Specify {cmd:odd} to construct the
+    bins in a way such that the last bin only contains a single column. If 
+    {cmd:horizontal} is specified, {cmd:odd} affects the number of
+    hexagon rows rather than columns.
 
 {phang}
     {it:heatplot_options} are {helpb heatplot} options allowed in Syntax 1, 2, or
-    3, respectively. Not allowed are options {cmd:scatter()} and {cmd:hexagon()}.
-
+    3, respectively. Not allowed are options {cmd:scatter()}, {cmd:hexagon()}, 
+    {cmd:bcuts()}, {cmd:ybcuts()}, and {cmd:xbcuts()}.
 
 {title:Examples}
 
@@ -120,7 +118,7 @@
 {title:Author}
 
 {pstd}
-    Ben Jann, University of Bern, ben.jann@soz.unibe.ch
+    Ben Jann, University of Bern, ben.jann@unibe.ch
 
 {pstd}
     Thanks for citing this software as follows:

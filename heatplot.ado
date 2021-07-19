@@ -1,4 +1,4 @@
-*! version 1.0.6  13oct2020  Ben Jann
+*! version 1.0.7  19jul2021  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -19,16 +19,19 @@ program heatplot, rclass
 
     // syntax
     // - list of common options
-    local zopts LEVels(int 0) CUTs(str) Colors(str asis) ///
-        size srange(numlist max=2 >=0) TRANSform(str asis) ///
-        MISsing MISsing2(str) VALues VALues2(str) HEXagon HEXagon2(str asis) ///
+    local zopts LEVels(int 0) CUTs(str) Colors(str asis) NORMalize ///
+        size SIZE2(str asis) srange(numlist max=2 >=0) TRANSform(str asis) ///
+        MISsing MISsing2(str) VALues VALues2(str asis) ///
+        HEXagon HEXagon2(str asis) ///
         scatter SCATTER2(str asis) KEYlabels(str asis) p(str) ///
         RAMP RAMP2(str asis) BACKFill BACKFill2(str)
     local yxopts ///
          bins(str)  BWidth(str)  DISCRete  DISCRete2(numlist max=1) ///
         xbins(str) XBWidth(str) XDISCRete XDISCRete2(numlist max=1) ///
         ybins(str) YBWidth(str) YDISCRete YDISCRete2(numlist max=1) ///
-        clip lclip rclip tclip bclip
+        clip lclip rclip tclip bclip ///
+        BCuts(numlist ascending min=2) XBCuts(numlist ascending min=2) ///
+        YBCuts(numlist ascending min=2)
     local matopts lower upper noDIAGonal drop(numlist)
     local gopts noGRaph addplot(str asis) ADDPLOTNOPReserve ///
         GENerate GENerate2(str) Replace noPREServe ///
@@ -55,7 +58,7 @@ program heatplot, rclass
     else {                                        // syntax 1: heatplot [z] y x
         local syntax 1
         syntax varlist(min=2 max=3 fv) [if] [in] [aw fw iw pw] [, ///
-            `zopts' Statistic(name) fast SIZEProp SIZE2(str asis) RECenter ///
+            `zopts' Statistic(name) fast SIZEProp RECenter ///
             `yxopts' FILLin(numlist max=2 missingok) noLabel ///
             idgenerate(str) /// undocumented
             `gopts' ]
@@ -139,41 +142,58 @@ program heatplot, rclass
     if "`backfill'"!=""    _parse_backfill, `backfill2'
     // - handle bins()
     if inlist(`syntax',1,2) {
-        if `"`bins'`bwidth'"'!="" {
-            if "`xcat'`xdiscrete'"!="" & "`ycat'`ydiscrete'"!="" &  {
-                di as err "bins()/bwidth() not allowed with categorical/discrete variables"
+        if `"`bins'`bwidth'`bcuts'"'!="" {
+            if `"`bcuts'"'!="" & "`hexagon'"!="" {
+                di as err "bcuts() not allowed together with hexagon"
                 exit 198
             }
-            if `"`bins'"'!="" {
-                if `"`bwidth'"'!="" {
-                    di as err "bins() and bwidth() not both allowed"
-                    exit 198
-                }
+            if "`xcat'`xdiscrete'"!="" & "`ycat'`ydiscrete'"!="" &  {
+                di as err "bins/bwidth/bcuts() not allowed with categorical/discrete variables"
+                exit 198
+            }
+            if ((`"`bins'"'!="") + (`"`bwidth'"'!="") + (`"`bcuts'"'!=""))>1 {
+                di as err "only one of bins(), bwidth() and bcuts() allowed"
+                exit 198
             }
         }
         foreach v in x y {
-            if `"``v'bins'``v'bwidth'"'!="" {
+            if `"``v'bins'``v'bwidth'``v'bcuts'"'!="" {
+                if `"``v'bcuts'"'!="" & "`hexagon'"!="" {
+                    di as err "`v'bcuts() not allowed together with hexagon"
+                    exit 198
+                }
                 if "``v'cat'``v'discrete'"!="" {
-                    di as err "`v'bins() not allowed with categorical/discrete `v'"
+                    di as err "`v'bins/bwith/bcuts() not allowed with categorical/discrete `v'"
+                    exit 198
+                }
+                if ((`"``v'bins'"'!="") + (`"``v'bwidth'"'!="") + (`"``v'bcuts'"'!=""))>1 {
+                    di as err "only one of `v'bins(), `v'bwidth() and `v'bcuts() allowed"
                     exit 198
                 }
                 if `"``v'bins'"'!="" {
-                    if `"``v'bwidth'"'!="" {
-                        di as err "`v'bins() and `v'bwidth() not both allowed"
-                        exit 198
-                    }
                     _parse_bins `v' 0 ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' ``v'bins'
                 }
-                else _parse_bins `v' 1 ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' ``v'bwidth'
+                else if `"``v'bcuts'"'!="" {
+                    _parse_bcuts `v' ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' "``v'bcuts'"
+                }
+                else {
+                    _parse_bins `v' 1 ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' ``v'bwidth'
+                }
             }
             else if "``v'cat'``v'discrete'"=="" {
-                if `"`bins'"'!="" ///
+                if `"`bins'"'!="" {
                     _parse_bins `v' 0 ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' `bins'
-                else              ///
+                }
+                else if `"`bcuts'"'!="" {
+                    _parse_bcuts `v' ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' "`bcuts'"
+                }
+                else {
                     _parse_bins `v' 1 ``v'_K' ``v'_LB' ``v'_UB' ``v'_WD' `bwidth'
+                }
             }
         }
     }
+    
     // - clip option
     if "`clip'"!="" {
         local xclip clip
@@ -200,6 +220,8 @@ program heatplot, rclass
         }
     }
     // - handle statistic() and size()
+    _parse_size2 `size2'
+    if `"`size2'"'!="" local size size
     if `syntax'==1 {
         if `"`statistic'"'=="" {
             if "`z0'"=="" local statistic "percent"
@@ -209,8 +231,8 @@ program heatplot, rclass
             di as err "statistic(asis) only allowed if z variable is specified"
             exit 198
         }
-        if (("`size'"!="") + ("`sizeprop'"!="") + (`"`size2'"'!=""))>1 {
-            di as err "only one of size, sizeprop, and size() allowed"
+        if (("`size'"!="") + ("`sizeprop'"!=""))>1 {
+            di as err "only one of size() and sizeprop allowed"
             exit 198
         }
     }
@@ -266,21 +288,11 @@ program heatplot, rclass
     _parse_generate `generate2'
     if "`generate2'"!="" local generate generate
     if "`generate'"!="" {
-        foreach v0 in _Z _Zid _Y _Yshape _X _Xshape _Size {
+        foreach v0 in _Z _Zid _Y _Yshape _X _Xshape _Size _Mlab {
             gettoken v generate2 : generate2
             if `"`v'"'=="" local v `v0'
             if "`replace'`preserve'"=="" confirm new variable `v'
             local vnames `vnames' `v'
-        }
-    }
-    
-    // (remove once support for density with hex implemented)
-    if "`hexagon'"!="" {
-        if "`yclip'`xclip'"!="" {
-            if `"`statistic'"'=="density" {
-                di as err "combining statistic(density) with clip is currently not supported in hexagon plots"
-                exit 198
-            }
         }
     }
     
@@ -290,6 +302,7 @@ program heatplot, rclass
         tempvar ID
         gen double `ID' = _n
     }
+    local no_dataset_in_use = (c(k)==0)
     preserve
     qui count
     local N0 = r(N)
@@ -299,8 +312,54 @@ program heatplot, rclass
         qui gen double `z0' = .
         qui gen double `y0' = .
         qui gen double `x0' = .
-        if      `syntax'==2 mata: writematamatrixtodata(`mata')
-        else if `syntax'==3 mata: writematrixtodata()
+        if `"`size2'"'!="" {
+            confirm name `size2'
+            if `:list sizeof size2'>1 {
+                di as err `"'`size2'' found where name expected"'
+                exit 7
+            }
+            if `syntax'==2 {
+                capt mata mata describe `size2'
+                if _rc {
+                    di as err `"Mata matrix `size2' not found"'
+                    exit _rc
+                }
+            }
+            else { // syntax=3
+                confirm matrix `size2'
+            }
+            tempvar z2
+            qui gen `z2' = .
+        }
+        if `"`valuesexp'"'!="" {
+            confirm name `valuesexp'
+            if `:list sizeof valuesexp'>1 {
+                di as err `"'`valuesexp'' found where name expected"'
+                exit 7
+            }
+            if `syntax'==2 {
+                capt mata mata describe `valuesexp'
+                if _rc {
+                    di as err `"Mata matrix `valuesexp' not found"'
+                    exit _rc
+                }
+            }
+            else { // syntax=3
+                confirm matrix `valuesexp'
+            }
+            tempvar z3
+            qui gen `z3' = .
+        }
+        if `syntax'==2 {
+            if `"`size2'"'==""     local size2     J(0,0,.)
+            if `"`valuesexp'"'=="" local valuesexp J(0,0,.)
+            mata: writematamatrixtodata(`mata', `size2', `valuesexp')
+        }
+        else { // syntax=3
+            mata: writematrixtodata("`matrix'", `"`size2'"', `"`valuesexp'"')
+        }
+        local size2
+        local valuesexp
         if "`hexdir'"=="1" { // flip variables
             local tmp `x0'
             local x0 `y0'
@@ -318,8 +377,18 @@ program heatplot, rclass
     }
     if `"`size2'"'!="" {
         tempvar z2
-        qui gen double `z2' = abs(`size2') if `touse'
-        markout `touse' `z2'
+        qui gen double `z2' = (`size2') if `touse'
+    }
+    if `"`valuesexp'"'!="" {
+        tempvar z3
+        qui gen `z3' = (`valuesexp') if `touse'
+        if `"`statistic'"'!="asis" {
+            if substr("`:type `z3''",1,3)=="str" {
+                di as err "string expression in {bf:values(label())} only "/*
+                    */ "allowed with {bf:statistic(asis)}"
+                exit 198
+            }
+        }
     }
     qui keep if `touse'
     // - handle weights and count observations
@@ -343,7 +412,7 @@ program heatplot, rclass
         local N = r(N)
     }
     // - drop all irrelevant variables
-    keep `y0' `x0' `z0' `z2' `w' `by' `ID'
+    keep `y0' `x0' `z0' `z2' `z3' `w' `by' `ID'
 
     // collect titles for axes and legend
     if `syntax'==1 {
@@ -392,10 +461,18 @@ program heatplot, rclass
                      if "``v'discrete2'"!="" scalar ``v'_WD' = ``v'discrete2'
                  }
             }
-            else if "`hexagon'"=="" ///
-                _makebin_continuous `v' ``v'' ``v'0' ``v'_K' ``v'_LB' ///
-                    ``v'_MIN' ``v'_UB' ``v'_MAX' ``v'_WD' "``v'tight'" ///
-                    "``v'clip'" "`swgt'"
+            else if "`hexagon'"=="" {
+                if "``v'cuts'"!="" {
+                    _makebin_cuts `v' ``v'' ``v'0' ``v'_K' ``v'_LB' ///
+                        ``v'_MIN' ``v'_UB' ``v'_MAX' ``v'_WD' "``v'cuts'"
+                    local `v'WDvar ``v'_WD'
+                }
+                else {
+                    _makebin_continuous `v' ``v'' ``v'0' ``v'_K' ``v'_LB' ///
+                        ``v'_MIN' ``v'_UB' ``v'_MAX' ``v'_WD' "``v'tight'" ///
+                        "``v'clip'" "`swgt'"
+                }
+            }
             else /// hexagon
                 _hexbin_prepare `v' ``v'' ``v'0' ``v'_K' ``v'_LB' ///
                     ``v'_MIN' ``v'_UB' ``v'_MAX' ``v'_WD' "``v'tight'" ///
@@ -409,8 +486,8 @@ program heatplot, rclass
     if "`hexagon'"!="" {
         if "`xrecenter'"!="" clonevar `x0' = `x'
         if "`yrecenter'"!="" clonevar `y0' = `y'
-        _hexbin `x' `x_LB' `x_UB' `x_WD' `x_MIN' `x_MAX' "`xtight'" "`xclip'" ///
-                `y' `y_LB' `y_UB' `y_WD' `y_MIN' `y_MAX' "`ytight'" "`yclip'" ///
+        _hexbin `x' `x_LB' `x_UB' `x_WD' `x_MIN' `x_MAX' "`xtight'" "`xclip'" "`xdiscrete'" ///
+                `y' `y_LB' `y_UB' `y_WD' `y_MIN' `y_MAX' "`ytight'" "`yclip'" "`ydiscrete'" ///
                 `hexorder'
     }
     if `"`idgenerate'"'!="" {   // undocumented
@@ -437,64 +514,52 @@ program heatplot, rclass
         else         qui gen double `z2' = 1
     }
     if `"`statistic'"'!="asis" {
+        if "`statistic'"==substr("proportion", 1, max(2, strlen("`statistic'"))) {
+            local statistic0 proportion
+            local statistic percent
+        }
+        else if "`statistic'"==substr("density", 1, max(4, strlen("`statistic'"))) {
+            local statistic0 density
+            local statistic percent
+        }
         if "`z0'"=="" {
             tempvar z0
             qui gen double `z0' = 1
         }
         if "`sizeprop'"!=""  local z2stat (percent) `z2'
-        else if "`z2'"!=""   local z2stat (mean)    `z2'
+        else if "`z2'"!=""   local z2stat (`sizestat') `z2'
+        if "`z3'"!=""        local z3stat (`valuestat') `z3'
         if "`xrecenter'"!="" local xrcstat (mean) `x0'
         if "`yrecenter'"!="" local yrcstat (mean) `y0'
-        if "`statistic'"=="density" {
-            local statistic0 density
-            local statistic percent
-        }
-        else if "`statistic'"=="proportion" {
-            local statistic0 proportion
-            local statistic percent
+        if "`xWDvar'`yWDvar'"!="" { // xbcuts or ybcuts
+            local WDstat (last)
+            if "`xWDvar'"!="" local WDstat `WDstat' `x_WD'
+            if "`yWDvar'"!="" local WDstat `WDstat' `y_WD'
         }
         if "`fast'"!="" local collapse gcollapse // requires gtools
         else            local collapse collapse
-        `collapse' (`statistic') `z0' `z2stat' `xrcstat' `yrcstat' ///
-            `wgt', fast by(`by' `y' `x')
-        if "`statistic0'"=="density" {
-            local statistic `statistic0'
-        }
-        else if "`statistic0'"=="proportion" {
+        `collapse' (`statistic') `z0' `z2stat' `z3stat' `xrcstat' `yrcstat' ///
+            `WDstat' `wgt', fast by(`by' `y' `x')
+        if inlist("`statistic0'", "proportion", "density") {
             qui replace `z0' = `z0' / 100
             local statistic `statistic0'
         }
     }
     qui drop if `x'>=. | `y'>=. // no longer needed (missings were relevant 
                                 // only for computing percentages by collapse)
-
+    
     // compute areas in case of clip
-    if "`statistic0'"=="density" {
-        if "`yclip'`xclip'"!="" {
-            tempname CTAG
-            qui gen byte `CTAG' = 0
-            foreach v in y x {
-                if "``v'clip'"!="" {
-                    if "``v'clip'"!="rclip" ///
-                        qui replace `CTAG' = 1 if ``v'' < (``v'_LB'+``v'_WD'/2)
-                    if "``v'clip'"!="lclip" ///
-                        qui replace `CTAG' = 1 if (``v''+``v'_WD'/2) > ``v'_UB'
-                }
-            }
-            tempname AREA
-            qui gen double `AREA' = cond(`CTAG', 1, `y_WD' * `x_WD')
-            mata: setarea("y")
-            mata: setarea("x")
-            qui replace `z0' = `z0' / 100 / (`AREA')
-            drop `CTAG' `AREA'
-        }
-        else qui replace `z0' = `z0' / 100 / (`y_WD' * `x_WD')
+    if "`normalize'"!="" | "`statistic'"=="density" {
+        tempname AREA
+        qui gen double `AREA' = `y_WD' * `x_WD'
+        if "`yclip'`xclip'"!="" mata: cliparea("`hexagon'"!="")
+        qui replace `z0' = `z0' / (`AREA')
+        drop `AREA'
     }
     
-     // z: apply display format and rename (to prevent name conflict later on)
+     // z: rename (to prevent name conflict later on)
     tempname z
     rename `z0' `z'
-    if `"`valuesfmt'"'!="" format `valuesfmt' `z'
     
     // apply transform
     if `"`transform'"'!="" {
@@ -504,9 +569,15 @@ program heatplot, rclass
     
     // handle size
     if "`size'"!="" {
-        tempvar z2
-        qui gen double `z2' = abs(`z')
-        qui replace `z2' = 0 if `z2'>=.
+        if "`z2'"=="" {
+            tempvar z2
+            qui gen double `z2' = abs(`z')
+            qui replace `z2' = 0 if `z2'>=.
+        }
+        else if "`sizeprop'"=="" {
+            qui replace `z2' = abs(`z2')
+            qui replace `z2' = 0 if `z2'>=.
+        }
     }
     if "`z2'"!="" {
         if "`scatter'"=="" {
@@ -524,9 +595,25 @@ program heatplot, rclass
         }
     }
     
+    // handle values
+    if "`values'"!="" {
+        if "`z3'"=="" {
+            tempvar z3
+            qui gen `z3' = `z'
+        }
+        if `"`valuestrans'"'!="" {
+            // generate new variable so that result can be numeric or string
+            tempvar tmp
+            local valuestrans: subinstr local valuestrans "@" "`z3'", all
+            qui gen `tmp' = (`valuestrans')
+            local z3 "`tmp'"
+        }
+        if `"`valuesfmt'"'!="" format `valuesfmt' `z3'
+    }
+    
     // fillin
-    _fillin "`fillin'" `x' `x_K' `x_LB' `x_WD' "`xtight'" "`xcat'`xdiscrete'" ///
-                       `y' `y_K' `y_LB' `y_WD' "`ytight'" "`ycat'`ydiscrete'" ///
+    _fillin "`fillin'" `x' `x_K' `x_LB' `x_WD' "`xtight'" "`xcat'`xdiscrete'" "`xcuts'" ///
+                       `y' `y_K' `y_LB' `y_WD' "`ytight'" "`ycat'`ydiscrete'" "`ycuts'" ///
                        `z' "`z2'" "`by'" "`hexagon'" `hexorder' `hexodd'
     
     // determine range of data and set levels if cuts contains @min/@max
@@ -552,9 +639,16 @@ program heatplot, rclass
     }
     
     // get colors
+    _parse comma colors coloropts : colors
     if `"`colors'"'=="" {
-        if c(stata_version)<14.2 local colors "viridis"
-        else                     local colors "hcl, viridis"
+        if c(stata_version)<14.2 {
+            if `"`coloropts'"'=="" local colors "hcl, viridis"
+            else local colors `"hcl`coloropts'"'
+        }
+        else local colors `"viridis`coloropts'"'
+    }
+    else {
+        local colors `"`colors'`coloropts'"'
     }
     if `levels'==0 {
         _colorpalette `levels' `colors'
@@ -679,37 +773,41 @@ program heatplot, rclass
         tempvar id
         qui gen `id' = _n
         if "`hexagon'"!="" {
-            qui expand 7
-            sort `id'
-            qui by `id': gen double `X' = cond(inlist(_n,5,6), -1, 1) * ///
-                cond(inlist(_n,1,4), 0, `x_WD'/2) if _n<7
-            qui by `id': gen double `Y' = cond(inlist(_n,1,2,6), -1, 1) / ///
-                cond(inlist(_n,1,4), 1, 2) * `y_WD' * (2/3) if _n<7
+            if "`yclip'`xclip'"!="" {
+                qui expand 9
+                sort `id'
+                qui gen double `X' = .
+                qui gen double `Y' = .
+                mata: fillinhexcoords()
+            }
+            else {
+                qui expand 7
+                sort `id'
+                qui by `id': gen double `X' = cond(inlist(_n,5,6), -1, 1) * ///
+                    cond(inlist(_n,1,4), 0, `x_WD'/2) if _n<7
+                qui by `id': gen double `Y' = cond(inlist(_n,1,2,6), -1, 1) / ///
+                    cond(inlist(_n,1,4), 1, 2) * `y_WD' * (2/3) if _n<7
+            }
         }
         else {
             qui expand 5
             sort `id'
             qui by `id': gen double `X' = cond(inlist(_n,1,2), -`x_WD'/2, `x_WD'/2) if _n<5
             qui by `id': gen double `Y' = cond(inlist(_n,1,4), -`y_WD'/2, `y_WD'/2) if _n<5
-        }
-        if "`yclip'`xclip'"!="" {
-            tempname CTAG
-            qui gen byte `CTAG' = 0
-            foreach v in y x {
-                local V = strupper("`v'")
-                if "``v'clip'"!="" {
-                    if "``v'clip'"!="rclip" ///
-                        qui replace `CTAG' = 1 if (``v'' + ``V'') < ``v'_LB' & ``V''<.
-                    if "``v'clip'"!="lclip" ///
-                        qui replace `CTAG' = 1 if (``v''+``V'') > ``v'_UB' & ``V''<.
+            if "`yclip'`xclip'"!="" {
+                if inlist("`yclip'", "clip", "lclip") {
+                    qui replace `Y' = max(`y'+`Y', `y_LB') - `y' if `Y'<.
+                }
+                if inlist("`yclip'", "clip", "rclip") {
+                    qui replace `Y' = min(`y'+`Y', `y_UB') - `y' if `Y'<.
+                }
+                if inlist("`xclip'", "clip", "lclip") {
+                    qui replace `X' = max(`x'+`X', `x_LB') - `x' if `X'<.
+                }
+                if inlist("`xclip'", "clip", "rclip") {
+                    qui replace `X' = min(`x'+`X', `x_UB') - `x' if `X'<.
                 }
             }
-            if "`hexagon'"!="" mata: cliphexborders()
-            else {
-                mata: clipborders("y")
-                mata: clipborders("x")
-            }
-            drop `CTAG'
         }
         if "`z2'"!="" {
             qui replace `X' = `X'*`z2'
@@ -754,7 +852,7 @@ program heatplot, rclass
             sort `sortindex'
             drop `byindex' `sortindex'
         }
-        else {
+        else if !`no_dataset_in_use' {
             qui save `"`plotdata'"', replace
             restore, preserve
             qui merge 1:1 _n using `"`plotdata'"', ///
@@ -819,8 +917,8 @@ program heatplot, rclass
             */ lalign(center) `equations2')
     }
     if "`values'"!="" {
-        local plots `plots' (scatter `y' `x' if `z'<., `AXIS' ms(i)/*
-            */ mlabel(`z') mlabpos(0) mlabcolor(black) `values2')
+        local plots `plots' (scatter `y' `x' if `z'<., `AXIS' mlabel(`z3')/*
+            */ `values2')
     }
     if `"`addplot'"'!="" {
         local plots `plots' || `addplot' ||
@@ -828,9 +926,9 @@ program heatplot, rclass
     if "`ramp'"=="" {
         if "`by'"=="" local legendopt order(`legend') position(3)
         else          local legendopt order(`legend')
-        local legendopt legend(all subtitle(`ztitle', size(medsmall)) ///
-             `legendopt' cols(1) rowgap(0) size(vsmall) keygap(tiny) ///
-             symxsize(medlarge) `keylab_opts')
+        local legendopt legend(all subtitle(`ztitle', size(medsmall))/*
+             */ `legendopt' cols(1) rowgap(0) size(vsmall) keygap(tiny)/*
+             */ symxsize(medlarge) `keylab_opts')
     }
     if `syntax'==3 {
         local yscale yscale(reverse)
@@ -859,9 +957,9 @@ program heatplot, rclass
         else {
             local options `legendopt' `options'
         }
-        graph twoway `plots', ytitle(`"`ytitle'"') xtitle(`"`xtitle'"') ///
-            `yscale' `yhor' `ylabel' `xscale' `xlabel' `backfill' ///
-            `byopt' `options'
+        graph twoway `plots', ytitle(`"`ytitle'"') xtitle(`"`xtitle'"')/*
+            */ `yscale' `yhor' `ylabel' `xscale' `xlabel' `backfill'/*
+            */ `byopt' `options'
         if "`ramp'"!="" {
             // generate color ramp
             qui gen long `ramp_ID' = .
@@ -914,7 +1012,7 @@ program heatplot, rclass
     if "`generate'"!="" {
         if `"`addplot'"'!="" & "`addplotnopreserve'"=="" {
             if "`preserve'"!="" { // get rid of orig data
-                keep `z' `Z' `y' `Y' `x' `X' `z2'
+                keep `z' `Z' `y' `Y' `x' `X' `z2' `z3' `xWDvar' `yWDvar'
                 keep if `Z'<. | `Z'==.z
             }
             else {
@@ -942,7 +1040,7 @@ program heatplot, rclass
                 sort `sortindex'
                 drop `byindex' `sortindex'
             }
-            else {
+            else if !`no_dataset_in_use' {
                 qui save `"`plotdata'"', replace
                 restore, preserve
                 qui merge 1:1 _n using `"`plotdata'"', ///
@@ -965,13 +1063,17 @@ program heatplot, rclass
         if "`z2'"!="" {
             lab var `z2' "shape scaling size"
         }
-        foreach v0 in `z' `Z' `y' `Y' `x' `X' `z2' {
+        if "`z3'"!="" {
+            lab var `z3' "marker labels"
+        }
+        foreach v0 in z Z y Y x X z2 z3 {
             gettoken v vnames : vnames
+            if "``v0''"=="" continue
             if "`replace'"!="" {
                 capt confirm new var `v', exact
                 if _rc drop `v'
             }
-            rename `v0' `v'
+            rename ``v0'' `v'
             local vdescribe `vdescribe' `v'
         }
         order `vdescribe', last
@@ -982,7 +1084,9 @@ program heatplot, rclass
     foreach v in x y {
         return scalar `v'_ub  = ``v'_UB'
         return scalar `v'_lb  = ``v'_LB'
-        return scalar `v'_wd  = ``v'_WD'
+        if "``v'cuts'"!="" local wd .
+        else               local wd = ``v'_WD'
+        return scalar `v'_wd  = `wd'
         return scalar `v'_k   = ``v'_K'
     }
     return local eqcoords `"`eqcoords'"'
@@ -1047,6 +1151,18 @@ program _parse_bins
     scalar `UB' = `ub'
     scalar `WD' = `wd'
     c_local `x'tight `tight'
+end
+
+program _parse_bcuts
+    args x K LB UB WD cuts
+    local n: list sizeof cuts
+    local lb: word 1 of `cuts'
+    local ub: word `n' of `cuts'
+    scalar `K'  = `n' - 1
+    scalar `LB' = `lb'
+    scalar `UB' = `ub'
+    scalar `WD' = .
+    c_local `x'cuts "`cuts'"
 end
 
 program _parse_hex
@@ -1130,12 +1246,53 @@ program _check_gropts
 end
 
 program _parse_values
-    syntax [, Format(str) * ]
+    syntax [, Label(str asis) Format(str) TRANSform(str asis) ///
+        STYle(passthru) Position(passthru) Gap(passthru) ANGle(passthru) ///
+        Size(passthru) Color(passthru) ///
+        /// backward compatibility:
+        MLABSTYle(str) MLABPosition(str) MLABGap(str) MLABANGle(str) ///
+        MLABSize(str) MLABColor(str) MLABTextstyle(str) ///
+        ]
+    _parse_expstat `label' // returns exp and statistic
+    if `"`statistic'"'=="" local statistic mean
     if `"`format'"'!="" {
-        confirm numeric format `format'
+        confirm format `format'
     }
-    c_local valuesfmt `format'
-    c_local values2 `options'
+    foreach opt in style position gap angle size color textstyle {
+        // backward compatibility
+        if `"`mlab`opt''"'!="" {
+            if `"``opt''"'=="" {
+                local `opt' `opt'(`mlab`opt'')
+            }
+        }
+    }
+    if `"`position'"'==""     local position position(0)
+    if `"`style'`color'"'=="" local color color(black)
+    local values2 ms(i) mlab`position'
+    foreach opt in style gap angle size color textstyle {
+        if `"``opt''"'!="" {
+            local values2 `values2' mlab``opt''
+        }
+    }
+    c_local valuesexp   `"`exp'"'
+    c_local valuestat   `"`statistic'"'
+    c_local valuestrans `"`transform'"'
+    c_local valuesfmt   `format'
+    c_local values2     `values2'
+end
+
+program _parse_size2
+    _parse_expstat `0' // returns exp and statistic
+    if `"`statistic'"'=="" local statistic mean
+    c_local size2 `"`exp'"'
+    c_local sizestat `"`statistic'"'
+end
+
+program _parse_expstat
+    _parse comma EXP 0 : 0
+    syntax [, Statistic(name) ]
+    c_local exp `"`EXP'"'
+    c_local statistic "`statistic'"
 end
 
 program _parse_backfill
@@ -1381,12 +1538,40 @@ end
 program _makebin_discrete
     args v x K LB MIN UB MAX WD
     rename `x' `v'
-    qui su `v', meanonly
+    su `v', meanonly
     scalar `MIN' = r(min)
     scalar `MAX' = r(max)
     scalar `K' = round((`MAX'-`MIN')/`WD') + 1
     scalar `LB' = `MIN'
     scalar `UB' = `MAX'
+end
+
+program _makebin_cuts
+    args xy v x K LB MIN UB MAX WD cuts
+    // setup
+    su `x', meanonly
+    scalar `MIN' = r(min)
+    scalar `MAX' = r(max)
+    // compute bin midpoints
+    qui gen double `WD' = .
+    qui gen double `v' = .
+    gettoken ul cuts : cuts
+    forv i = 1/`=`K'' {
+        local ll `ul'
+        gettoken ul cuts : cuts
+        local wd = `ul'-`ll'
+        if `i'==`K' local lt "<="
+        else        local lt "<"
+        qui replace `WD' = `ul'-`ll'     if `x'>=`ll' & `x'`lt'`ul'
+        qui replace `v'  = (`ul'+`ll')/2 if `x'>=`ll' & `x'`lt'`ul'
+    }
+    // note on omitted data
+    if `LB'>`MIN' | `UB'<`MAX' {
+        qui count if `v'>=.
+        if r(N) {
+            di as txt "(`r(N)' observations outside range of `xy'cuts)"
+        }
+    }
 end
 
 program _makebin_continuous
@@ -1529,63 +1714,77 @@ program _hexbin_prepare
 end
 
 program _hexbin
-    args x x_LB x_UB x_WD x_MIN x_MAX xtight xclip ///
-         y y_LB y_UB y_WD y_MIN y_MAX ytight yclip order
+    args x x_LB x_UB x_WD x_MIN x_MAX xtight xclip xdisc ///
+         y y_LB y_UB y_WD y_MIN y_MAX ytight yclip ydisc order
     // y
-    tempvar y1 y2
-    qui gen double `y1' = floor((`y' - `y_LB') / `y_WD' * 3)
-    if inlist("`ytight'", "tight", "ltight") {
-        qui gen double `y2' = floor((`y1'-2)/6) * 6 + 4
-        qui replace    `y1' = floor((`y1'+1)/6) * 6 + 1
+    if "`ydisc'"!="" {
+        local y1 `y'
+        local y2 `y'
     }
     else {
-        qui gen double `y2' = floor((`y1'-1)/6) * 6 + 3
-        qui replace    `y1' = floor((`y1'+2)/6) * 6
+        tempvar y1 y2
+        qui gen double `y1' = floor((`y' - `y_LB') / `y_WD' * 3)
+        if inlist("`ytight'", "tight", "ltight") {
+            qui gen double `y2' = floor((`y1'-2)/6) * 6 + 4
+            qui replace    `y1' = floor((`y1'+1)/6) * 6 + 1
+        }
+        else {
+            qui gen double `y2' = floor((`y1'-1)/6) * 6 + 3
+            qui replace    `y1' = floor((`y1'+2)/6) * 6
+        }
+        if inlist("`ytight'", "tight", "ltight") {
+            // make sure that obs on lower edge are not put in bin below
+            qui replace `y2' = `y2' + 6 if `y2'<0 & `y'==`y_LB'
+        }
+        if inlist("`ytight'", "tight", "rtight") {
+            // make sure that obs on upper edge are not put in bin above
+            qui replace `y1' = `y1' - 6 if `y'==`y_UB' & ///
+                (abs((`y_LB' + ((`y1'-2)/3) * `y_WD') - `y_UB') / (`y_WD'+1)) < 1e-12
+            qui replace `y2' = `y2' - 6 if `y'==`y_UB' & ///
+                (abs((`y_LB' + ((`y2'-2)/3) * `y_WD') - `y_UB') / (`y_WD'+1)) < 1e-12
+        }
+        qui replace `y1' = `y_LB' + `y1'/3 * `y_WD'
+        qui replace `y2' = `y_LB' + `y2'/3 * `y_WD'
     }
-    if inlist("`ytight'", "tight", "ltight") {
-        // make sure that obs on lower edge are not put in bin below
-        qui replace `y2' = `y2' + 6 if `y2'<0 & `y'==`y_LB'
-    }
-    if inlist("`ytight'", "tight", "rtight") {
-        // make sure that obs on upper edge are not put in bin above
-        qui replace `y1' = `y1' - 6 if `y'==`y_UB' & ///
-            (abs((`y_LB' + ((`y1'-2)/3) * `y_WD') - `y_UB') / (`y_WD'+1)) < 1e-12
-        qui replace `y2' = `y2' - 6 if `y'==`y_UB' & ///
-            (abs((`y_LB' + ((`y2'-2)/3) * `y_WD') - `y_UB') / (`y_WD'+1)) < 1e-12
-    }
-    qui replace `y1' = `y_LB' + `y1'/3 * `y_WD'
-    qui replace `y2' = `y_LB' + `y2'/3 * `y_WD'
     // x
-    tempvar x1 x2
-    qui gen double `x1' = floor((`x' - `x_LB') / `x_WD' * 4)
-    if inlist("`xtight'", "tight", "ltight") {
-        qui gen double `x2' = floor((`x1'+2)/4) * 4
-        qui replace    `x1' = floor(`x1'/4) * 4 + 2
+    if "`xdisc'"!="" {
+        local x1 `x'
+        local x2 `x'
     }
     else {
-        qui gen double `x2' = floor((`x1'+3)/4) * 4 - 1
-        qui replace    `x1' = floor((`x1'+1)/4) * 4 + 1
+        tempvar x1 x2
+        qui gen double `x1' = floor((`x' - `x_LB') / `x_WD' * 4)
+        if inlist("`xtight'", "tight", "ltight") {
+            qui gen double `x2' = floor((`x1'+2)/4) * 4
+            qui replace    `x1' = floor(`x1'/4) * 4 + 2
+        }
+        else {
+            qui gen double `x2' = floor((`x1'+3)/4) * 4 - 1
+            qui replace    `x1' = floor((`x1'+1)/4) * 4 + 1
+        }
+        if inlist("`xtight'", "tight", "rtight") {
+            // make sure that obs on right edge are not put in bin on the right
+            qui replace `x1' = `x1' - 4 if `x'==`x_UB' & ///
+                (abs((`x_LB' + ((`x1'-2)/4) * `x_WD') - `x_UB') / (`x_WD'+1)) < 1e-12
+            qui replace `x2' = `x2' - 4 if `x'==`x_UB' & ///
+                (abs((`x_LB' + ((`x2'-2)/4) * `x_WD') - `x_UB') / (`x_WD'+1)) < 1e-12
+        }
+        if `order' {
+            local tmp `x1'
+            local x1 `x2'
+            local x2 `tmp'
+        }
+        qui replace `x1' = `x_LB' + `x1'/4 * `x_WD'
+        qui replace `x2' = `x_LB' + `x2'/4 * `x_WD'
     }
-    if inlist("`xtight'", "tight", "rtight") {
-        // make sure that obs on right edge are not put in bin on the right
-        qui replace `x1' = `x1' - 4 if `x'==`x_UB' & ///
-            (abs((`x_LB' + ((`x1'-2)/4) * `x_WD') - `x_UB') / (`x_WD'+1)) < 1e-12
-        qui replace `x2' = `x2' - 4 if `x'==`x_UB' & ///
-            (abs((`x_LB' + ((`x2'-2)/4) * `x_WD') - `x_UB') / (`x_WD'+1)) < 1e-12
-    }
-    if `order' {
-        local tmp `x1'
-        local x1 `x2'
-        local x2 `tmp'
-    }
-    qui replace `x1' = `x_LB' + `x1'/4 * `x_WD'
-    qui replace `x2' = `x_LB' + `x2'/4 * `x_WD'
     // pick position
-    tempvar d
-    qui gen byte `d' = (((`x'-`x1')/`x_WD')^2 + 3/4*((`y'-`y1')/`y_WD')^2) ///
-                     < (((`x'-`x2')/`x_WD')^2 + 3/4*((`y'-`y2')/`y_WD')^2)
-    qui replace `x1' = `x2' if `d'==0
-    qui replace `y1' = `y2' if `d'==0
+    if "`xdisc'"=="" | "`ydisc'"=="" {
+        tempvar d
+        qui gen byte `d' = (((`x'-`x1')/`x_WD')^2 + 3/4*((`y'-`y1')/`y_WD')^2) ///
+                         < (((`x'-`x2')/`x_WD')^2 + 3/4*((`y'-`y2')/`y_WD')^2)
+        qui replace `x1' = `x2' if `d'==0
+        qui replace `y1' = `y2' if `d'==0
+    }
     // remove bins that are out of range
     if `y_LB'>`y_MIN' {
         if inlist("`ytight'", "tight", "rtight") ///
@@ -1620,9 +1819,14 @@ program _hexbin
         if "`xclip'"!="rclip" & `x_LB'>`x_MIN' qui replace `x1' = . if `x' < `x_LB'
         if "`xclip'"!="lclip" & `x_UB'<`x_MAX' qui replace `x1' = . if `x' > `x_UB'
     }
-    drop `x' `y'
-    rename `x1' `x'
-    rename `y1' `y'
+    if "`xdisc'"=="" {
+        drop `x'
+        rename `x1' `x'
+    }
+    if "`ydisc'"=="" {
+        drop `y'
+        rename `y1' `y'
+    }
     // note on omitted data
     if `x_LB'>`x_MIN' | `x_UB'<`x_MAX' {
         qui count if `x'>=.
@@ -1639,13 +1843,13 @@ program _hexbin
 end
 
 program _fillin
-    args fillin x x_K x_LB x_WD xtight xcat y y_K y_LB y_WD ytight ycat ///
+    args fillin x x_K x_LB x_WD xtight xcat xcuts y y_K y_LB y_WD ytight ycat ycuts ///
         z z2 by hexagon hexorder hexodd 
     if "`fillin'"=="" exit
     tempname byindex
     if "`by'"!="" {
         sort `by'
-        by `by': qui gen double `byindex' = (_n==1)
+        qui by `by': gen double `byindex' = (_n==1)
         qui replace `byindex' = `byindex'[_n-1] + `byindex' in 2/l
     }
     else qui gen byte `byindex' = 1
@@ -1653,13 +1857,16 @@ program _fillin
         tempname xold
         rename `x' `xold'
         if inlist("`xtight'", "tight", "ltight") local xoff .25
-        else                                      local xoff 0
+        else                                     local xoff 0
         qui gen double `x' = `x_LB' + ///
             (round((`xold' - `x_LB') / `x_WD' - `xoff') + `xoff') * `x_WD'
     }
     tempfile plotdata
     qui save `"`plotdata'"', replace
-    keep `byindex' `x' `y'
+    local keepvars `byindex' `x' `y'
+    if "`xcuts'"!="" local keepvars `keepvars' `x_WD'
+    if "`ycuts'"!="" local keepvars `keepvars' `y_WD'
+    keep `keepvars'
     mata: fillingaps()
     tempvar merge
     qui merge 1:1 `byindex' `x' `y' using `"`plotdata'"', ///
@@ -1734,22 +1941,24 @@ version 9.2
 mata:
 mata set matastrict on
 
-void writematamatrixtodata(transmorphic M)
+void writematamatrixtodata(transmorphic M, transmorphic S, transmorphic V)
 {
-    if (isreal(M)) _writematamatrixtodata(M)
-    else {
+    if (!isreal(M) | !isreal(S) | !isreal(V)) {
         display("{err}matrix must be real")
         exit(3253)
     }
+    _writematamatrixtodata(M, S, V)
 }
 
-void writematrixtodata()
+void writematrixtodata(string scalar m, string scalar s, string scalar v)
 {
-    real matrix M
+    real matrix M, S, V
     
     // write matrix
-    M = st_matrix(st_local("matrix"))
-    _writematamatrixtodata(M)
+    M = st_matrix(m)
+    if (s!="") S = st_matrix(s)
+    if (v!="") V = st_matrix(v)
+    _writematamatrixtodata(M, S, V)
     
     // generate labels
     if (st_local("equations")=="") {
@@ -1764,12 +1973,15 @@ void writematrixtodata()
     }
 }
 
-void _writematamatrixtodata(real matrix M)
+void _writematamatrixtodata(real matrix M, real matrix S, real matrix V)
 {
     real scalar i, j, k, r, c, z, y, x, hasdrop, N, upper, lower, nodiag, 
                 xmin, xmax, ymin, ymax, d
+    real scalar hasS, zS, hasV, zV
     real rowvector drop
     
+    hasS = (length(S)!=0)
+    hasV = (length(V)!=0)
     z = st_varindex(st_local("z0"))
     y = st_varindex(st_local("y0"))
     x = st_varindex(st_local("x0"))
@@ -1779,6 +1991,22 @@ void _writematamatrixtodata(real matrix M)
     nodiag = st_local("diagonal")!=""
     hasdrop = (length(drop)>0)
     r = rows(M); c = cols(M); d = min((r,c)); k = r*c
+    if (hasS) {
+        if (rows(S)!=r | cols(S)!=c) {
+            display("{err}matrix specified in {bf:size()} must have" +
+                " same dimension as main matrix")
+            exit(3200)
+        }
+        zS = st_varindex(st_local("z2"))
+    }
+    if (hasV) {
+        if (rows(V)!=r | cols(V)!=c) {
+            display("{err}matrix specified in {bf:values(label())} must have" +
+                " same dimension as main matrix")
+            exit(3200)
+        }
+        zV = st_varindex(st_local("z3"))
+    }
     if (nodiag)      k = k - d
     if      (lower)  k = k - (d*d-d)/2 - (c>r ? (c-r)*r : 0)
     else if (upper)  k = k - (d*d-d)/2 - (r>c ? (r-c)*c : 0)
@@ -1792,6 +2020,8 @@ void _writematamatrixtodata(real matrix M)
             st_store((i,k), z, M[,j])
             st_store((i,k), y, 1::r)
             st_store((i,k), x, J(r,1,j))
+            if (hasS) st_store((i,k), zS, S[,j])
+            if (hasV) st_store((i,k), zV, V[,j])
         }
     }
     else {
@@ -1810,6 +2040,8 @@ void _writematamatrixtodata(real matrix M)
                 _st_store(k, z, M[i,j])
                 _st_store(k, y, i)
                 _st_store(k, x, j)
+                if (hasS) _st_store(k, zS, S[i,j])
+                if (hasV) _st_store(k, zV, V[i,j])
             }
         }
         if (k < st_nobs() & k>N) {  // possible if hasdrop
@@ -2010,18 +2242,24 @@ void collectlbls(string scalar X, string scalar tag, | string scalar ID)
 void fillingaps()
 {
     real scalar    r, rby, ryx, ry, rx, i, j, a, b, aa, bb
-    real colvector by, y, x, bynew, ynew, xnew
+    real scalar    hasywd, hasxwd
+    real colvector by, bynew, ynew, xnew, ywd, xwd
+    real matrix    y, x
     
     // input
     by = uniqrows(st_data(., st_local("byindex")))
     y  = _fillingaps("y")
     x  = _fillingaps("x")
+    hasywd = cols(y)>1
+    hasxwd = cols(x)>1
     
     // expand
     rby = rows(by); ry = rows(y); rx = rows(x)
     ryx = ry * rx
     r   = rby * ryx
     bynew = ynew = xnew = J(r, 1, .)
+    if (hasywd) ywd =  J(r, 1, .)
+    if (hasxwd) xwd =  J(r, 1, .)
     for (i=1; i<=rby; i++) {
         a = 1 + (i-1) * ryx
         b = a + ryx - 1
@@ -2029,8 +2267,10 @@ void fillingaps()
         for (j=1; j<=ry; j++) {
             aa = a + (j-1) * rx
             bb = aa + rx - 1
-            ynew[|aa \ bb|] = J(rx, 1, y[j])
-            xnew[|aa \ bb|] = x
+            ynew[|aa \ bb|] = J(rx, 1, y[j,1])
+            xnew[|aa \ bb|] = x[,1]
+            if (hasywd) ywd[|aa \ bb|] = J(rx, 1, y[j,2])
+            if (hasxwd) xwd[|aa \ bb|] = x[,2]
         }
     }
     
@@ -2039,13 +2279,34 @@ void fillingaps()
     st_store(., st_local("byindex"), bynew)
     st_store(., st_local("y"), ynew)
     st_store(., st_local("x"), xnew)
+    if (hasywd) st_store(., st_local("y_WD"), ywd)
+    if (hasxwd) st_store(., st_local("x_WD"), xwd)
 }
 
-real colvector _fillingaps(string scalar s)
+real matrix _fillingaps(string scalar s)
 {
     real scalar    min, wd, r, rnew, i, j, xi, ll
-    real colvector x, xnew
+    real colvector x
+    real matrix    xnew
     
+    if (st_local(s+"cuts")!="") {
+        x = strtoreal(tokens(st_local(s+"cuts")))'
+        rnew = length(x) - 1
+        xnew = (x[|1\rnew|] + x[|2\.|])/2, (x[|2\.|] - x[|1\rnew|])
+        // copy original values to avoid precision issues:
+        x = uniqrows(st_data(., st_local(s)))
+        r = rows(x)
+        j = 1
+        for (i=1;i<=r;i++) {
+            xi = x[i]
+            while (xi>(xnew[j,1]+xnew[j,2]/4)) { // add 1/4 of width
+                if (j==rnew) break // not really needed
+                j++
+            }
+            xnew[j,1] = xi
+        }
+        return(xnew)
+    }
     x = uniqrows(st_data(., st_local(s)))
     if (st_local(s+"cat")!="") return(x) // use existing values only
     r    = rows(x)
@@ -2074,117 +2335,197 @@ real colvector _fillingaps(string scalar s)
     return(xnew)
 }
 
-void setarea(string scalar v)
+void cliparea(real scalar hex)
 {
-    real scalar    lb, ub, wd0, wd, i
-    real colvector x, A
-    string scalar  clip
-    pragma unset   x
+    real scalar     xlb,  xub,  ylb,  yub
+    real scalar    ixlb, ixub, iylb, iyub, i
+    real colvector x, xh, y, yh, A
     pragma unset   A
     
-    clip = st_local(v+"clip")
-    if (clip!="") {
-        if (clip!="rclip") lb = st_numscalar(st_local(v+"_LB"))
-        if (clip!="lclip") ub = st_numscalar(st_local(v+"_UB"))
+    x = st_data(., st_local("x"))
+    y = st_data(., st_local("y"))
+    st_view(A, ., st_local("AREA"))
+    i = rows(x)
+    xlb = st_numscalar(st_local("x_LB"))
+    xub = st_numscalar(st_local("x_UB"))
+    ylb = st_numscalar(st_local("y_LB"))
+    yub = st_numscalar(st_local("y_UB"))
+    if (hex==0) {
+        if (st_local("xWDvar")!="") xh = st_data(., st_local("x_WD"))/2
+        else                        xh = J(i,1,st_numscalar(st_local("x_WD"))/2)
+        if (st_local("yWDvar")!="") yh = st_data(., st_local("y_WD"))/2
+        else                        yh = J(i,1,st_numscalar(st_local("y_WD"))/2)
+        for (; i; i--) {
+            ixlb = x[i] - xh[i]; ixub = x[i] + xh[i]
+            iylb = y[i] - yh[i]; iyub = y[i] + yh[i]
+            if (ixlb>=xlb & ixub<=xub & iylb>=ylb & iyub<=yub) continue
+            ixlb = max((ixlb, xlb)); ixub = min((ixub, xub))
+            iylb = max((iylb, ylb)); iyub = min((iyub, yub))
+            A[i] = (ixub-ixlb) * (iyub-iylb)
+        }
+        return
     }
-    wd0 = st_numscalar(st_local(v+"_WD"))
-    st_view(A, ., st_local("AREA"), st_local("CTAG"))
-    st_view(x, ., st_local(v), st_local("CTAG"))
-    for (i=rows(x); i; i--) {
-        wd = wd0
-        if (lb<.) {
-            if (x[i]<(lb+wd/2)) wd = wd - (lb - x[i] + wd/2)
-        }
-        if (ub<.) {
-            if ((x[i]+wd/2)>ub) wd = wd - (x[i] - ub + wd/2)
-        }
-        A[i] = A[i] * wd
+    xh = st_numscalar(st_local("x_WD"))/2
+    yh = st_numscalar(st_local("y_WD"))/3
+    for (; i; i--) {
+        if ((y[i]-2*yh)>=ylb & (y[i]+2*yh)<=yub & 
+            (x[i]-xh)>=xlb   & (x[i]+xh)<=xub) continue
+        A[i] = hexarea(hexcoord(y[i], yh, ylb, yub, x[i], xh, xlb, xub))
     }
 }
 
-void clipborders(string scalar v)
-{
-    real scalar    lb, ub, i
-    real colvector x, X
-    string scalar  clip
-    pragma unset   x
-    pragma unset   X 
+real scalar hexarea(real matrix YX)
+{   // compute area covered by polygon (points assumed counter clockwise)
+    real scalar    i
+    real colvector a, Y, X
     
-    clip = st_local(v+"clip")
-    if (clip!="") {
-        if (clip!="rclip") lb = st_numscalar(st_local(v+"_LB"))
-        if (clip!="lclip") ub = st_numscalar(st_local(v+"_UB"))
+    Y = YX[,1] \ YX[1,1] // close the polygon
+    X = YX[,2] \ YX[1,2]
+    i = rows(YX)
+    a = J(i,1,.)
+    for (; i; i--) a[i] = ((Y[i]+Y[i+1])/2 - Y[1]) * (X[i] - X[i+1])
+    return(sum(a))
+}
+
+real matrix hexcoord(
+    real scalar y, real scalar yh, real scalar ylb, real scalar yub,
+    real scalar x, real scalar xh, real scalar xlb, real scalar xub)
+{   // generate (possibly clipped) hexagon coordinates around (y,x)
+    // assuming ylb<=yub, xlb<=xub
+    // assuming that at least part of the hexagon is within the bounds
+    real colvector Y, X
+    
+    // define hexagon
+    Y = X = J(8,1,.)
+    Y[1] = Y[2] = y - 2*yh
+    Y[5] = Y[6] = y + 2*yh
+    Y[3] = Y[8] = y - yh
+    Y[4] = Y[7] = y + yh
+    X[1] = X[2] = x
+    X[5] = X[6] = x
+    X[3] = X[4] = x + xh
+    X[7] = X[8] = x - xh
+    // check whether clipping is needed
+    if (ylb<=Y[1] & yub>=Y[5] & xlb<=X[7] & xub>=X[3]) return((Y:-y, X:-x))
+    // apply clipping
+    _hexcoord_clip_bt(Y, X, 1, 2, 1, ylb, yub, xlb, xub, yh, xh)
+    _hexcoord_clip_bt(Y, X, 6, 5, 0, ylb, yub, xlb, xub, yh, xh)
+    _hexcoord_clip_lr(Y, X, 4, 3, 0, ylb, yub, xlb, xub, yh, xh)
+    _hexcoord_clip_lr(Y, X, 7, 8, 1, ylb, yub, xlb, xub, yh, xh)
+    return((Y:-y, X:-x))
+}
+
+void _hexcoord_clip_bt(real colvector Y, real colvector X,
+    real scalar a, real scalar b, real scalar up,
+    real scalar ylb, real scalar yub, real scalar xlb, real scalar xub,
+    real scalar yh, real scalar xh)
+{
+    real scalar lb, ub, s, d
+    
+    if (up) {; lb = ylb ; ub = Y[a]; }
+    else    {; lb = Y[a]; ub = yub ; }
+    s = yh / xh
+    if (lb>ub) {
+        d    = lb - ub
+        Y[a] = Y[b] = (up ? lb : ub)
+        if (d<=yh) {
+            X[a] = X[a] - d/s
+            X[b] = X[b] + d/s
+        }
+        else if (d<=3*yh) {
+            X[a] = X[a] - xh
+            X[b] = X[b] + xh
+        }
+        else if (d<=4*yh) {
+            X[a] = X[a] - (4*yh-d)/s
+            X[b] = X[b] + (4*yh-d)/s
+        }
+        if (xlb>X[a]) X[a] = xlb
+        if (X[b]>xub) X[b] = xub
     }
-    st_view(x, ., st_local(v), st_local("CTAG"))
-    st_view(X, ., st_local(strupper(v)), st_local("CTAG"))
-    for (i=rows(x); i; i--) {
-        if (lb<.) {
-            if (X[i]<0) { // shift lower edge
-                if ((x[i]+X[i])<lb) X[i] = lb - x[i]
+    else if (xlb>X[a]) {
+        d    = xlb - X[a]
+        X[a] = X[b] = xlb
+        Y[a] = Y[b] = Y[a] + (up ? 1 : -1) * d * s
+    }
+    else if (X[a]>xub) {
+        d    = X[a] - xub
+        X[a] = X[b] = xub
+        Y[a] = Y[b] = Y[a] + (up ? 1 : -1) * d * s
+    }
+}
+
+void _hexcoord_clip_lr(real colvector Y, real colvector X,
+    real scalar a, real scalar b, real scalar up,
+    real scalar ylb, real scalar yub, real scalar xlb, real scalar xub,
+    real scalar yh, real scalar xh)
+{
+    real scalar lb, ub, s, d
+    
+    if (up) {; lb = xlb ; ub = X[a]; }
+    else    {; lb = X[a]; ub = xub ; }
+    s = yh / xh
+    if (lb>ub) {
+        d    = lb - ub
+        X[a] = X[b] = (up ? lb : ub)
+        if (d<=xh) {
+            Y[a] = Y[a] + d*s
+            Y[b] = Y[b] - d*s
+        }
+        else if (d<=2*xh) {
+            Y[a] = Y[a] + (2*xh-d)*s
+            Y[b] = Y[b] - (2*xh-d)*s
+        }
+        if (Y[a]>yub) Y[a] = yub
+        if (ylb>Y[b]) Y[b] = ylb
+    }
+    else {
+        if (ylb>Y[b]) {
+            d    = max((ylb - Y[b] - 2*yh, 0))
+            Y[b] = ylb
+            X[b] = X[b] + (up ? 1 : -1) * d/s
+            if (ylb>Y[a]) {
+                d    = ylb - Y[a]
+                Y[a] = ylb
+                X[a] = X[a] + (up ? 1 : -1) * d/s
             }
         }
-        if (ub<.) {
-            if (X[i]>0) { // shift upper edge
-                if ((x[i]+X[i])>ub) X[i] = ub - x[i]
+        if (Y[a]>yub) {
+            d    = max((Y[a] - yub - 2*yh, 0))
+            Y[a] = yub
+            X[a] = X[a] + (up ? 1 : -1) * d/s
+            if (Y[b]>yub) {
+                d    = Y[b] - yub
+                Y[b] = yub
+                X[b] = X[b] + (up ? 1 : -1) * d/s
             }
         }
     }
 }
 
-void cliphexborders()
+void fillinhexcoords()
 {
-    real scalar    ylb, yub, ywd, xlb, xub, xwd, i, slope, tmp
-    real colvector y, Y, x, X
-    string scalar  yclip, xclip
-    pragma unset   y
+    real scalar    i, xlb, xub, ylb, yub, xh, yh
+    real colvector x, y, X, Y
+    real matrix    C
+    pragma unset   X
     pragma unset   Y
-    pragma unset   x
-    pragma unset   X 
     
-    yclip = st_local("yclip")
-    ywd = st_numscalar(st_local("y_WD")) / 3
-    if (yclip!="") {
-        if (yclip!="rclip") ylb = st_numscalar(st_local("y_LB"))
-        if (yclip!="lclip") yub = st_numscalar(st_local("y_UB"))
-    }
-    st_view(y, ., st_local("y"), st_local("CTAG"))
-    st_view(Y, ., st_local("Y"), st_local("CTAG"))
-    xclip = st_local("xclip")
-    xwd = st_numscalar(st_local("x_WD")) / 2
-    if (xclip!="") {
-        if (xclip!="rclip") xlb = st_numscalar(st_local("x_LB"))
-        if (xclip!="lclip") xub = st_numscalar(st_local("x_UB"))
-    }
-    slope = ywd / xwd
-    st_view(x, ., st_local("x"), st_local("CTAG"))
-    st_view(X, ., st_local("X"), st_local("CTAG"))
-    for (i=rows(y); i; i--) {
-        if (xlb<.) {
-            if ((x[i]+X[i])<xlb) {
-                if (xlb<x[i]) tmp = xlb - x[i] + xwd 
-                else          tmp = x[i] - xlb + xwd
-                tmp = ywd + slope * tmp
-                if (Y[i]>0) Y[i] = tmp
-                else        Y[i] = -tmp
-                X[i] = xlb - x[i]
-            }
-        }
-        if (xub<.) {
-            if ((x[i]+X[i])>xub) {
-                if (xub>x[i]) tmp = x[i] - xub + xwd
-                else          tmp = xub - x[i] + xwd
-                tmp = ywd + slope * tmp
-                if (Y[i]>0) Y[i] = tmp
-                else        Y[i] = -tmp
-                X[i] = xub - x[i]
-            }
-        }
-        if (ylb<.) {
-            if ((y[i]+Y[i])<ylb) Y[i] = ylb - y[i]
-        }
-        if (yub<.) {
-            if ((y[i]+Y[i])>yub) Y[i] = yub - y[i]
-        }
+    x = st_data(., st_local("x"))
+    y = st_data(., st_local("y"))
+    st_view(X, ., st_local("X"))
+    st_view(Y, ., st_local("Y"))
+    xlb = st_numscalar(st_local("x_LB"))
+    xub = st_numscalar(st_local("x_UB"))
+    ylb = st_numscalar(st_local("y_LB"))
+    yub = st_numscalar(st_local("y_UB"))
+    xh = st_numscalar(st_local("x_WD"))/2
+    yh = st_numscalar(st_local("y_WD"))/3
+    for (i = rows(x); i; i--) {
+        C = hexcoord(y[i], yh, ylb, yub, x[i], xh, xlb, xub)
+        Y[|i-8 \ i-1|] = C[,1]
+        X[|i-8 \ i-1|] = C[,2]
+        i = i-8
     }
 }
 
