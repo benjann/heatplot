@@ -37,6 +37,10 @@ Installation from GitHub:
 
 Main changes:
 
+    20jul2021
+    - values(label(exp)) can now be string in syntax 1; the statistic() suboption
+      will be set to -first- in this case
+
     19jul2021
     - new [x|y]bcuts() option to cut x and y at arbitrary values (not allowed with
       hexagon)

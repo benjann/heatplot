@@ -1,4 +1,4 @@
-*! version 1.0.7  19jul2021  Ben Jann
+*! version 1.0.8  20jul2021  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -382,13 +382,6 @@ program heatplot, rclass
     if `"`valuesexp'"'!="" {
         tempvar z3
         qui gen `z3' = (`valuesexp') if `touse'
-        if `"`statistic'"'!="asis" {
-            if substr("`:type `z3''",1,3)=="str" {
-                di as err "string expression in {bf:values(label())} only "/*
-                    */ "allowed with {bf:statistic(asis)}"
-                exit 198
-            }
-        }
     }
     qui keep if `touse'
     // - handle weights and count observations
@@ -528,7 +521,13 @@ program heatplot, rclass
         }
         if "`sizeprop'"!=""  local z2stat (percent) `z2'
         else if "`z2'"!=""   local z2stat (`sizestat') `z2'
-        if "`z3'"!=""        local z3stat (`valuestat') `z3'
+        if "`z3'"!="" {
+            if `"`valuestat'"'=="" {
+                if substr("`:type `z3''",1,3)=="str" local valuestat first
+                else                                 local valuestat mean
+            }
+            local z3stat (`valuestat') `z3'
+        }
         if "`xrecenter'"!="" local xrcstat (mean) `x0'
         if "`yrecenter'"!="" local yrcstat (mean) `y0'
         if "`xWDvar'`yWDvar'"!="" { // xbcuts or ybcuts
@@ -1254,7 +1253,6 @@ program _parse_values
         MLABSize(str) MLABColor(str) MLABTextstyle(str) ///
         ]
     _parse_expstat `label' // returns exp and statistic
-    if `"`statistic'"'=="" local statistic mean
     if `"`format'"'!="" {
         confirm format `format'
     }

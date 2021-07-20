@@ -1,5 +1,5 @@
 {smcl}
-{* 19jul2021}{...}
+{* 20jul2021}{...}
 {hi:help heatplot}{right:{browse "http://github.com/benjann/heatplot/"}}
 {hline}
 
@@ -346,26 +346,21 @@
 {pmore}
     In syntax 2, specify
     {cmd:size(}{it:name}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
-    to obtain the size information from Mata matrix {it:name}.
+    to obtain the size information from Mata matrix {it:name}. The matrix must
+    be numeric and have the same dimension as the main matrix.
 
 {pmore}
     In syntax 3, specify {opt size(matname)} to obtain the size information
-    from Stata matrix {it:matname}.
+    from Stata matrix {it:matname}. The matrix must have the same dimension
+    as the main matrix.
 
 {pmore}
     In syntax 1 and 2, suboption {opt statistic(stat)} sets the type
     of aggregation, where {it:stat} can be any statistic supported by
     {helpb collapse} (the default is {cmd:mean}). Suboption {cmd:statistic()}
     is only relevant if the main {helpb heatplot##statistic:statistic()} option
-    has not been set to {cmd:asis}.
-
-{pmore}
-    In syntax 2 and 3, the provided matrix must be numeric and must have the
-    same dimension as the main matrix.
-
-{pmore}
-    In any case, absolute values of the (possibly aggregated) information will
-    be used for the scaling.
+    has not been set to {cmd:asis}. In any case, absolute values of the
+    (possibly aggregated) information will be used for the scaling.
 
 {marker sizeprop}{...}
 {phang}
@@ -415,34 +410,33 @@
 {phang2}
     {opt l:abel(spec)} determines the source of the values of the labels. The
     default is to display the (aggregated and, possibly, normalized) z
-    values.
+    values. Alternatively, provide a custom source as follows.
 
 {pmore2}
     In syntax 1, specify
     {cmd:label(}{it:exp}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
     to display the (aggregated) value of {it:{help exp}} (typically, {it:exp}
     is a simple variable name). Observations for which {it:exp} is missing will
-    {it:not} be excluded from the estimation sample.
+    {it:not} be excluded from the estimation sample. The default for
+    {it:stat} is {cmd:mean} if {it:exp} is numeric and {cmd:first} if {it:exp} is string.
 
 {pmore2}
     In syntax 2, specify
     {cmd:label(}{it:name}[{cmd:,} {cmdab:s:tatistic(}{it:stat}{cmd:)}]{cmd:)}
-    to obtain the values from Mata matrix {it:name}.
+    to obtain the values from Mata matrix {it:name}. The matrix must
+    be numeric and have the same dimension as the main matrix. The default for
+    {it:stat} is {cmd:mean}.
 
 {pmore2}
     In syntax 3, specify {opt label(matname)} to obtain the values
-    from Stata matrix {it:matname}.
+    from Stata matrix {it:matname}. The matrix must have the same dimension
+    as the main matrix.
 
 {pmore2}
-    In syntax 1 and 2, suboption {opt statistic(stat)} sets the type
-    of aggregation, where {it:stat} can be any statistic supported by
-    {helpb collapse} (the default is {cmd:mean}). Suboption {cmd:statistic()}
-    is only relevant if the main {helpb heatplot##statistic:statistic()} option
-    has not been set to {cmd:asis}.
-
-{pmore2}
-    In syntax 2 and 3, the provided matrix must be numeric and must have the
-    same dimension as the main matrix.
+    In syntax 1 and 2, suboption {opt statistic(stat)} sets the type of
+    aggregation, where {it:stat} can be any statistic supported by
+    {helpb collapse}.  The suboption is only relevant if the main
+    {helpb heatplot##statistic:statistic()} option has not been set to {cmd:asis}.
 
 {phang2}
     {opt trans:form(@exp)} causes the values to be transformed before
