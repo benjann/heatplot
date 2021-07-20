@@ -1,5 +1,5 @@
 {smcl}
-{* 19jul2021}{...}
+{* 20jul2021}{...}
 {hi:help hexplot}{right:{browse "http://github.com/benjann/heatplot/"}}
 {hline}
 
@@ -20,8 +20,10 @@
     ]
 
 {pmore}
-    where {cmd:i.}{it:varname} is allowed for {it:y} and {it:x}. If {it:z}
-    is omitted, {it:z} is assumed to be a constant equal to 1.
+    where {it:z} is a numeric variable (assumed constant if omitted), {it:y}
+    is a numeric variable or a string variable, and {it:x} is a numeric variable
+    or a string variable. Categorical {it:y} and {it:x} variables can be specified
+    as {cmd:i.}{it:varname}.
 
 {pstd}
     Syntax 2: Hex plot from Mata matrix

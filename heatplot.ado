@@ -1,4 +1,4 @@
-*! version 1.0.8  20jul2021  Ben Jann
+*! version 1.0.9  20jul2021  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -85,6 +85,13 @@ program heatplot, rclass
         }
         if "`z0'"!="" {
             capt confirm numeric variable `z0'
+            if _rc==101 {
+                di as err `"'`z0'' found where numeric variable expected"'
+                exit 7
+            }
+            else {
+                confirm numeric variable `z0'
+            }
         }
     }
     // - handle discrete()
