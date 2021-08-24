@@ -1,5 +1,5 @@
 {smcl}
-{* 20jul2021}{...}
+{* 23jul2021}{...}
 {hi:help heatplot}{right:{browse "http://github.com/benjann/heatplot/"}}
 {hline}
 
@@ -723,7 +723,7 @@
     y and x have the same scale, you may want to set the width of y-bins to
     sqrt(3)/2 times the width of x-bins.
 
-{marker bins}{...}
+{marker bcuts}{...}
 {phang}
     {opth bcuts(numlist)}, {opth ybcuts(numlist)} and {opth xbcuts(numlist)}
     specify how {it:y} and {it:x} are binned. Use these options as an alternative

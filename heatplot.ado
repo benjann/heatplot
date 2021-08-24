@@ -1,8 +1,14 @@
-*! version 1.0.9  20jul2021  Ben Jann
+*! version 1.1.0  24aug2021  Ben Jann
 
 capt which colorpalette
 if _rc {
-    di as err "the palettes package needs to be installed; type {stata ssc install palettes, replace}"
+    di as err "-colorpalette- is required; type {stata ssc install palettes, replace}"
+    if c(stata_version)>=14.2 {
+        capt findfile lcolrspace.mlib
+        if _rc {
+            di as error "-colrspace- is required; type {stata ssc install colrspace, replace}"
+        }
+    }
     exit 499
 }
 

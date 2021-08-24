@@ -37,6 +37,9 @@ Installation from GitHub:
 
 Main changes:
 
+    24aug2021
+    - improved checks for required packages and corresponding error messages
+
     20jul2021
     - values(label(exp)) can now be string in syntax 1; the statistic() suboption
       will be set to -first- in this case
