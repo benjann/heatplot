@@ -38,6 +38,9 @@ Installation from GitHub:
 Main changes:
 
     24aug2021
+    - textbox_options and legend_options were not fully supported in
+      keylabels(); this is fixed
+    - position() in legend() in by() was not passed trough; this is fixed
     - improved checks for required packages and corresponding error messages
 
     20jul2021

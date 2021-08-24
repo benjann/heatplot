@@ -1,4 +1,4 @@
-*! version 1.1.0  24aug2021  Ben Jann
+*! version 1.1.1  24aug2021  Ben Jann
 
 capt which colorpalette
 if _rc {
@@ -936,11 +936,10 @@ program heatplot, rclass
         local plots `plots' || `addplot' ||
     }
     if "`ramp'"=="" {
-        if "`by'"=="" local legendopt order(`legend') position(3)
-        else          local legendopt order(`legend')
-        local legendopt legend(all subtitle(`ztitle', size(medsmall))/*
-             */ `legendopt' cols(1) rowgap(0) size(vsmall) keygap(tiny)/*
-             */ symxsize(medlarge) `keylab_opts')
+        if `"`keylab_order'"'=="" local keylab_order order(`legend')
+        if `"`keylab_pos'"'=="" & "`by'"=="" local keylab_pos position(3)
+        local legendopt legend(subtitle(`ztitle', size(medsmall))/*
+             */ `keylab_order' `keylab_pos' `keylab_opts')
     }
     if `syntax'==3 {
         local yscale yscale(reverse)
@@ -1208,8 +1207,8 @@ program _parse_bylegend
     }
     local 0 `", `legend'"'
     syntax [, POSition(passthru) * ]
-    if `"`position'"'=="" c_local bylegend legend(position(3) `options')
-    else                  c_local bylegend legend(`options')
+    if `"`position'"'=="" local position position(3)
+    c_local bylegend legend(`position' `options')
 end
 
 program _parse_popts
@@ -1393,7 +1392,13 @@ end
 
 program _parse_keylab
     _parse comma keylab 0 : 0
-    syntax [, Format(str) TRANSform(str asis) INTERval RANge(numlist max=1) area * ]
+    syntax [, ///
+        Format(str) TRANSform(str asis) INTERval RANge(numlist max=1) area ///
+        all order(passthru) POSition(passthru) Cols(passthru) Rows(passthru) ///
+        ROWGap(passthru) KEYGap(passthru) SYMXsize(passthru) ///
+        TSTYle(passthru) SIze(passthru) * ]
+    local cols `rows' `cols'
+    local size `tstyle' `size'
     if "`interval'"!="" & "`range'"!="" {
         di as err "interval and range() are not both allowed"
         exit 198
@@ -1410,6 +1415,11 @@ program _parse_keylab
         c_local keylabels "`r(numlist)'"
     }
     else c_local keylabels
+    if `"`cols'"'==""     local cols cols(1)
+    if `"`rowgap'"'==""   local rowgap rowgap(0)
+    if `"`keygap'"'==""   local keygap keygap(tiny)
+    if `"`symxsize'"'=="" local symxsize symxsize(medlarge)
+    if `"`size'"'==""     local size size(vsmall)
     if `"`format'"'!="" {
         confirm numeric format `format'
     }
@@ -1418,7 +1428,9 @@ program _parse_keylab
     c_local keylab_interval `interval'
     c_local keylab_range `range'
     c_local keylab_area `area'
-    c_local keylab_opts `"`options'"'
+    c_local keylab_order `order'
+    c_local keylab_pos `position'
+    c_local keylab_opts all `cols' `rowgap' `keygap' `symxsize' `size' `options'
     c_local retransform `"`transform'"'
 end
 
